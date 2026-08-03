@@ -81,7 +81,9 @@ function parse_registry_pkg_info(registry_path, pkg, version=nothing)
     if version === nothing
         tree_hash = nothing
     else
-        versions = parse_registry_toml(registry_path, packages[uuid]["path"], "Versions.toml")
+        versions = parse_registry_toml(
+            registry_path, packages[uuid]["path"], "Versions.toml"
+        )
         tree_hash = convert(String, versions[string(version)]["git-tree-sha1"])
     end
     return (; uuid=uuid, repo=repo, subdir=subdir, tree_hash=tree_hash)
@@ -97,18 +99,26 @@ end
 Finds the previous semver version for a package. Returns the maximum version that is less than the current version,
 or `nothing` if there are no previous versions.
 """
-function find_previous_semver_version(pkg::AbstractString, current_version::VersionNumber, registry_path::AbstractString)
+function find_previous_semver_version(
+    pkg::AbstractString, current_version::VersionNumber, registry_path::AbstractString
+)
     all_pkg_versions = all_versions(pkg, registry_path)
     previous_versions = filter(<(current_version), all_pkg_versions)
     return isempty(previous_versions) ? nothing : maximum(previous_versions)
 end
 
 function get_fences(str)
-    n = maximum(x->length(x.captures[1])+1, eachmatch(r"(`+)", str), init=3)
+    n = maximum(x->length(x.captures[1])+1, eachmatch(r"(`+)", str); init=3)
     return "`"^n
 end
 
-function format_diff_stats(full_diff::AbstractString, stat::AbstractString, shortstat::AbstractString; old_tree_sha::AbstractString, new_tree_sha::AbstractString)
+function format_diff_stats(
+    full_diff::AbstractString,
+    stat::AbstractString,
+    shortstat::AbstractString;
+    old_tree_sha::AbstractString,
+    new_tree_sha::AbstractString,
+)
     # We want to give the most information we can in ~12 lines + optionally a detail block
     # The detail block should only be present if we can't fit the full diff inline AND the full diff will fit in the comment in the block. Comments can be 65,536 characters, but we will stop after 50k to allow room for other parts of the comment.
     # Note the full diff includes text from the package itself, so it is "attacker-controlled" in some sense.
@@ -127,7 +137,9 @@ function format_diff_stats(full_diff::AbstractString, stat::AbstractString, shor
     stat_fences = get_fences(stat)
 
     max_lines = 12
-    if full_diff_valid && full_diff_n_lines <= max_lines && full_diff_n_chars < max_lines*200
+    if full_diff_valid &&
+        full_diff_n_lines <= max_lines &&
+        full_diff_n_chars < max_lines*200
         return """
                $(full_diff_fences)diff
                ❯ git diff-tree --patch $old_tree_sha $new_tree_sha
@@ -174,10 +186,18 @@ function format_diff_stats(full_diff::AbstractString, stat::AbstractString, shor
     return str
 end
 
-function get_diff_stats(old_tree_sha::AbstractString, new_tree_sha::AbstractString; clone_dir::AbstractString)
-    full_diff = readchomp(`git -C $clone_dir diff-tree --patch $old_tree_sha $new_tree_sha --no-color`)
-    stat = readchomp(`git -C $clone_dir diff-tree --stat $old_tree_sha $new_tree_sha --stat-width=80 --no-color`)
-    shortstat = readchomp(`git -C $clone_dir diff-tree --shortstat $old_tree_sha $new_tree_sha --no-color`)
+function get_diff_stats(
+    old_tree_sha::AbstractString, new_tree_sha::AbstractString; clone_dir::AbstractString
+)
+    full_diff = readchomp(
+        `git -C $clone_dir diff-tree --patch $old_tree_sha $new_tree_sha --no-color`
+    )
+    stat = readchomp(
+        `git -C $clone_dir diff-tree --stat $old_tree_sha $new_tree_sha --stat-width=80 --no-color`,
+    )
+    shortstat = readchomp(
+        `git -C $clone_dir diff-tree --shortstat $old_tree_sha $new_tree_sha --no-color`
+    )
     return format_diff_stats(full_diff, stat, shortstat; old_tree_sha, new_tree_sha)
 end
 
@@ -187,7 +207,9 @@ end
 Converts a git tree SHA to a commit SHA by finding a commit that has that tree.
 Returns the commit SHA string, or `nothing` if no commit is found.
 """
-function tree_sha_to_commit_sha(tree_sha::AbstractString, clone_dir::AbstractString; subdir::AbstractString = "")
+function tree_sha_to_commit_sha(
+    tree_sha::AbstractString, clone_dir::AbstractString; subdir::AbstractString=""
+)
     isdir(clone_dir) || error("$clone_dir is not a directory")
     # Normalize to a full tree object ID; return nothing if it’s not a tree reachable in this repo
     full_tree = try
@@ -267,7 +289,11 @@ end
 Generates a GitHub diff URL comparing two commits.
 Returns the URL AbstractString, or `nothing` if the repository is not on GitHub.
 """
-function format_github_diff_url(repo_url::AbstractString, previous_commit_sha::AbstractString, current_commit_sha::AbstractString)
+function format_github_diff_url(
+    repo_url::AbstractString,
+    previous_commit_sha::AbstractString,
+    current_commit_sha::AbstractString,
+)
     if !is_github_repo(repo_url)
         return nothing
     end
@@ -300,28 +326,30 @@ function get_version_diff_info(data)
     end
 
     # Find the previous version
-    previous_version = find_previous_semver_version(data.pkg, data.version, data.registry_master)
+    previous_version = find_previous_semver_version(
+        data.pkg, data.version, data.registry_master
+    )
     if previous_version === nothing
         return nothing
     end
 
     # Get package repository info
     current_pkg_info = parse_registry_pkg_info(data.registry_head, data.pkg, data.version)
-    previous_pkg_info = parse_registry_pkg_info(data.registry_master, data.pkg, previous_version)
+    previous_pkg_info = parse_registry_pkg_info(
+        data.registry_master, data.pkg, previous_version
+    )
 
     # Get code diff stats
-    diff_stats = get_diff_stats(previous_pkg_info.tree_hash, current_pkg_info.tree_hash; clone_dir=data.pkg_clone_dir)
+    diff_stats = get_diff_stats(
+        previous_pkg_info.tree_hash,
+        current_pkg_info.tree_hash;
+        clone_dir=data.pkg_clone_dir,
+    )
 
     # GitHub diff link
     diff_url = get_github_diff_link(data, previous_pkg_info, current_pkg_info)
 
-    return (;
-        diff_stats,
-        diff_url,
-        previous_version,
-        current_version=data.version,
-    )
-
+    return (; diff_stats, diff_url, previous_version, current_version=data.version)
 end
 
 function get_github_diff_link(data, previous_pkg_info, current_pkg_info)
@@ -335,16 +363,16 @@ function get_github_diff_link(data, previous_pkg_info, current_pkg_info)
 
     # Convert previous tree SHA to commit SHA
     previous_commit_sha = tree_sha_to_commit_sha(
-        previous_pkg_info.tree_hash,
-        data.pkg_clone_dir;
-        subdir=previous_pkg_info.subdir
+        previous_pkg_info.tree_hash, data.pkg_clone_dir; subdir=previous_pkg_info.subdir
     )
 
     if previous_commit_sha === nothing
         return nothing
     end
 
-    return format_github_diff_url(current_pkg_info.repo, previous_commit_sha, current_commit_sha)
+    return format_github_diff_url(
+        current_pkg_info.repo, previous_commit_sha, current_commit_sha
+    )
 end
 
 #####
@@ -360,16 +388,22 @@ end
 # familiar, hopefully they will also read the sections themselves.
 
 function _comment_bot_intro()
-    return string("Hello, I am an automated registration bot.",
-    " I help manage the registration process by checking your registration against a set of ","[AutoMerge guidelines](https://juliaregistries.github.io/RegistryCI.jl/stable/guidelines/). ",
-    "If all these guidelines are met, this pull request will be merged automatically, completing your registration. It is **strongly recommended** to follow the guidelines, since otherwise ",
-    "the pull request needs to be manually reviewed and merged by a human.\n\n")
+    return string(
+        "Hello, I am an automated registration bot.",
+        " I help manage the registration process by checking your registration against a set of ",
+        "[AutoMerge guidelines](https://juliaregistries.github.io/RegistryCI.jl/stable/guidelines/). ",
+        "If all these guidelines are met, this pull request will be merged automatically, completing your registration. It is **strongly recommended** to follow the guidelines, since otherwise ",
+        "the pull request needs to be manually reviewed and merged by a human.\n\n",
+    )
 end
 
 function _new_package_section(n)
-    return string("## $n. New package registration", "\n\n",
-    "Please make sure that you have read the ",
-    "[package naming guidelines](https://pkgdocs.julialang.org/dev/creating-packages/#Package-naming-guidelines).\n\n")
+    return string(
+        "## $n. New package registration",
+        "\n\n",
+        "Please make sure that you have read the ",
+        "[package naming guidelines](https://pkgdocs.julialang.org/dev/creating-packages/#Package-naming-guidelines).\n\n",
+    )
 end
 
 function _what_next_if_fail(n; point_to_slack=false)
@@ -377,13 +411,19 @@ function _what_next_if_fail(n; point_to_slack=false)
     ## $n. *Needs action*: here's what to do next
 
     1. Please try to update your package to conform to these guidelines. The [General registry's README](https://github.com/JuliaRegistries/General/blob/master/README.md) has an FAQ that can help figure out how to do so."""
-    msg = string(msg, "\n",
+    msg = string(
+        msg,
+        "\n",
         "2. After you have fixed the AutoMerge issues, simply retrigger Registrator, the same way you did in the initial registration. This will automatically update this pull request. You do not need to change the version number in your `Project.toml` file (unless the AutoMerge issue is that you skipped a version number).",
         "\n\n",
-        "If you need help fixing the AutoMerge issues, or want your pull request to be manually merged instead, please post a comment explaining what you need help with or why you would like this pull request to be manually merged.")
+        "If you need help fixing the AutoMerge issues, or want your pull request to be manually merged instead, please post a comment explaining what you need help with or why you would like this pull request to be manually merged.",
+    )
 
     if point_to_slack
-        msg = string(msg, " Then, send a message to the `#pkg-registration` channel in the [public Julia Slack](https://julialang.org/slack/) for better visibility.")
+        msg = string(
+            msg,
+            " Then, send a message to the `#pkg-registration` channel in the [public Julia Slack](https://julialang.org/slack/) for better visibility.",
+        )
     end
     msg = string(msg, "\n\n")
     return msg
@@ -394,7 +434,7 @@ function _automerge_guidelines_failed_section_title(n)
 end
 
 function _automerge_guidelines_passed_section_title(n)
-    "## $n. [AutoMerge Guidelines](https://juliaregistries.github.io/RegistryCI.jl/stable/guidelines/) are all met! ✅\n\n"
+    return "## $n. [AutoMerge Guidelines](https://juliaregistries.github.io/RegistryCI.jl/stable/guidelines/) are all met! ✅\n\n"
 end
 
 function _comment_noblock(n)
@@ -417,18 +457,23 @@ function _version_diff_section(n, diff_info)
     str = string(
         "## $n. Code changes since last version\n\n",
         "Code changes from v$(diff_info.previous_version): \n\n",
-        diff_info.diff_stats
-        )
+        diff_info.diff_stats,
+    )
     if diff_info.diff_url !== nothing
-        str = string(str,
-            "\n",
-            "[View full patch diff on GitHub]($(diff_info.diff_url))\n\n")
+        str = string(
+            str, "\n", "[View full patch diff on GitHub]($(diff_info.diff_url))\n\n"
+        )
     end
     return str
 end
 
 function comment_text_pass(
-    ::NewVersion, suggest_onepointzero::Bool, version::VersionNumber, is_jll::Bool; new_package_waiting_minutes, data=nothing
+    ::NewVersion,
+    suggest_onepointzero::Bool,
+    version::VersionNumber,
+    is_jll::Bool;
+    new_package_waiting_minutes,
+    data=nothing,
 )
     # Need to know this ahead of time to get the section numbers right
     suggest_onepointzero &= version < v"1.0.0"
@@ -460,7 +505,12 @@ end
 # We allow passing `data` since the NewVersion method uses it.
 # This way `comment_text_pass` can be called generically.
 function comment_text_pass(
-    ::NewPackage, suggest_onepointzero::Bool, version::VersionNumber, is_jll::Bool; new_package_waiting_minutes, data = nothing
+    ::NewPackage,
+    suggest_onepointzero::Bool,
+    version::VersionNumber,
+    is_jll::Bool;
+    new_package_waiting_minutes,
+    data=nothing,
 )
     suggest_onepointzero &= version < v"1.0.0"
     if is_jll
@@ -596,7 +646,7 @@ in the registry and Julia's standard libraries.
 function get_all_pkg_name_uuids(registry_dir::AbstractString)
     # Mimic the structure of a RegistryInstance
     list = parse_registry_toml(registry_dir, "Registry.toml")["packages"]
-    registry = (; pkgs=Dict(k => (; name=v["name"]) for (k,v) in pairs(list)))
+    registry = (; pkgs=Dict(k => (; name=v["name"]) for (k, v) in pairs(list)))
     return get_all_pkg_name_uuids(registry)
 end
 
@@ -604,7 +654,13 @@ end
 # which is only valid on Julia 1.7+)
 function get_all_pkg_name_uuids(registry)
     packages = [(; entry.name, uuid=UUID(uuid)) for (uuid, entry) in pairs(registry.pkgs)]
-    append!(packages, ((; name = RegistryTools.get_stdlib_name(x), uuid=k) for (k,x) in pairs(RegistryTools.stdlibs())))
+    append!(
+        packages,
+        (
+            (; name=RegistryTools.get_stdlib_name(x), uuid=k) for
+            (k, x) in pairs(RegistryTools.stdlibs())
+        ),
+    )
     sort!(packages; by=x->x.name)
     unique!(packages)
     return packages
@@ -650,15 +706,23 @@ function try_remove_label(api, repo, issue, label; options...)
     label = HTTP.escapeuri(label)
     path = "/repos/$(GitHub.name(repo))/issues/$(GitHub.name(issue))/labels/$(GitHub.name(label))"
     @debug "Removing label" path
-    r = GitHub.remove_label(api, repo, issue, label; handle_error = false, options...)
+    r = GitHub.remove_label(api, repo, issue, label; handle_error=false, options...)
     r.status == 404 && return false
     GitHub.handle_response_error(r)  # throw errors in other cases if necessary
     return true
 end
 
-function maybe_create_label(api, repo, name::String, color::String, description::String; options...)
+function maybe_create_label(
+    api, repo, name::String, color::String, description::String; options...
+)
     path = "/repos/$(GitHub.name(repo))/labels"
-    result = GitHub.gh_post(api, path; params=(; name=name, color=color, description=description), handle_error=false, options...)
+    result = GitHub.gh_post(
+        api,
+        path;
+        params=(; name=name, color=color, description=description),
+        handle_error=false,
+        options...,
+    )
     @debug "Response from `maybe_create_label`" result
     return result.status == 201
 end
@@ -670,4 +734,13 @@ Add the label `$BLOCKED_LABEL` to the repo if it doesn't already exist.
 
 Returns whether or not it created the label.
 """
-maybe_create_blocked_label(api, repo; options...) = maybe_create_label(api, repo, BLOCKED_LABEL, "ff0000", "PR blocked by one or more comments lacking the string [noblock]."; options...)
+function maybe_create_blocked_label(api, repo; options...)
+    return maybe_create_label(
+        api,
+        repo,
+        BLOCKED_LABEL,
+        "ff0000",
+        "PR blocked by one or more comments lacking the string [noblock].";
+        options...,
+    )
+end

@@ -47,7 +47,9 @@ function check_pr(
     registry_head = directory_of_cloned_registry(cicfg; env=env)
 
     # Verify this is a PR build
-    run_pr_build = conditions_met_for_pr_build(cicfg; env=env, registry_config.master_branch)
+    run_pr_build = conditions_met_for_pr_build(
+        cicfg; env=env, registry_config.master_branch
+    )
     if !run_pr_build
         throw_not_automerge_applicable(
             AutoMergeWrongBuildType,

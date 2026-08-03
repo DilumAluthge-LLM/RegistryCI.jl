@@ -73,7 +73,7 @@ function get_compatible_julia_binaries(julia_compat, min_version)
 
     all_compatible_versions = filter(v -> any(in.(v, julia_compat)), all_versions)
     all_compatible_releases = filter(v -> any(in.(v, julia_compat)), all_releases)
-    binaries = Tuple{Cmd, String}[]
+    binaries = Tuple{Cmd,String}[]
 
     if isempty(all_compatible_versions)
         return binaries

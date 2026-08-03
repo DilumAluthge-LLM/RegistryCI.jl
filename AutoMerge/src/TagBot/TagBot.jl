@@ -74,8 +74,10 @@ function tagbot_file(repo; issue_comments=false)
         file = GH.file(repo, f.path; auth=AUTH[])
         contents = String(base64decode(file.content))
         if lowercase(basename(f.path)) in ("tagbot.yml", "tagbot.yaml") ||
-                occursin("JuliaRegistries/TagBot", contents) ||
-                occursin("julia-testitems/testitem-workflow/.github/workflows/juliaci.yml", contents)
+            occursin("JuliaRegistries/TagBot", contents) ||
+            occursin(
+                "julia-testitems/testitem-workflow/.github/workflows/juliaci.yml", contents
+            )
             issue_comments && !occursin("issue_comment", contents) && continue
             return f.path, contents
         end

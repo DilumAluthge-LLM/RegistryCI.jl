@@ -35,7 +35,9 @@ function has_no_dependency_confusion(pkg, registry_head, public_registries)
                     return false, message
                 end
                 package_path = packages[uuid]["path"]
-                other_package_repo = parse_registry_toml(registry, package_path, "Package.toml")["repo"]
+                other_package_repo = parse_registry_toml(
+                    registry, package_path, "Package.toml"
+                )["repo"]
                 if package_repo != other_package_repo
                     return false, message
                 end
@@ -43,7 +45,8 @@ function has_no_dependency_confusion(pkg, registry_head, public_registries)
         catch
             message = string(
                 "Failed to clone public registry $(repo) for a check against dependency confusion.\n",
-                "This is an internal issue with the AutoMerge process and has nothing to do with ", "the package being registered but requires manual intervention before AutoMerge ",
+                "This is an internal issue with the AutoMerge process and has nothing to do with ",
+                "the package being registered but requires manual intervention before AutoMerge ",
                 "can be resumed.",
             )
             return false, message

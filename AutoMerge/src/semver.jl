@@ -91,7 +91,9 @@ function julia_compat(pkg::String, version::VersionNumber, registry_path::String
         package_name=pkg, registry_path=registry_path
     )
     all_compat_entries_for_julia = Pkg.Types.VersionRange[]
-    compat = parse_registry_toml(registry_path, package_relpath, "Compat.toml"; allow_missing = true)
+    compat = parse_registry_toml(
+        registry_path, package_relpath, "Compat.toml"; allow_missing=true
+    )
     for version_range in keys(compat)
         if version in Pkg.Types.VersionRange(version_range)
             for compat_entry in compat[version_range]
@@ -122,12 +124,9 @@ function _has_upper_bound(r::Pkg.Types.VersionRange)
     a = r.upper != Pkg.Types.VersionBound("*")
     b = r.upper != Pkg.Types.VersionBound("0")
     c = !(Base.VersionNumber(0, typemax(Base.VInt), typemax(Base.VInt)) in r)
-    d =
-        !(
-            Base.VersionNumber(
-                typemax(Base.VInt), typemax(Base.VInt), typemax(Base.VInt)
-            ) in r
-        )
+    d = !(
+        Base.VersionNumber(typemax(Base.VInt), typemax(Base.VInt), typemax(Base.VInt)) in r
+    )
     e = !(typemax(Base.VersionNumber) in r)
     result = a && b && c && d && e
     return result

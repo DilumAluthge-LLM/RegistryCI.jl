@@ -7,7 +7,9 @@ function _get_all_dependencies_nonrecursive(working_directory::AbstractString, p
     package_relpath = get_package_relpath_in_registry(;
         package_name=pkg, registry_path=working_directory
     )
-    deps = parse_registry_toml(working_directory, package_relpath, "Deps.toml"; allow_missing = true)
+    deps = parse_registry_toml(
+        working_directory, package_relpath, "Deps.toml"; allow_missing=true
+    )
     for version_range in keys(deps)
         if version in Pkg.Types.VersionRange(version_range)
             for name in keys(deps[version_range])
@@ -40,7 +42,15 @@ function meets_allowed_jll_nonrecursive_dependencies(
     # 8. MPIPreferences
     # 7. other JLL packages
     all_dependencies = _get_all_dependencies_nonrecursive(working_directory, pkg, version)
-    allowed_dependencies = ("Pkg", "Libdl", "Artifacts", "JLLWrappers", "LazyArtifacts", "TOML", "MPIPreferences")
+    allowed_dependencies = (
+        "Pkg",
+        "Libdl",
+        "Artifacts",
+        "JLLWrappers",
+        "LazyArtifacts",
+        "TOML",
+        "MPIPreferences",
+    )
     for dep in all_dependencies
         if dep ∉ allowed_dependencies && !is_jll_name(dep)
             return false,

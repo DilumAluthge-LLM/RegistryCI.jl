@@ -82,15 +82,15 @@ end
 function comment_block_status_params(blocked::Bool)
     if blocked
         return (
-            state = "failure",
-            context = "automerge/comments",
-            description = "Blocked by one or more comments. Add [noblock] to comments or add label `$OVERRIDE_BLOCKS_LABEL`."
+            state="failure",
+            context="automerge/comments",
+            description="Blocked by one or more comments. Add [noblock] to comments or add label `$OVERRIDE_BLOCKS_LABEL`.",
         )
     else
         return (
-            state = "success",
-            context = "automerge/comments",
-            description = "No blocking comments"
+            state="success",
+            context="automerge/comments",
+            description="No blocking comments",
         )
     end
 end
@@ -208,7 +208,6 @@ function cron_or_api_build(
     all_statuses::AbstractVector{<:AbstractString},
     all_check_runs::AbstractVector{<:AbstractString},
 )
-
     if !registry_config.read_only
         # first, create `BLOCKED_LABEL` as a label in the repo if it doesn't
         # already exist. This way we can add it to PRs as needed.
@@ -228,7 +227,7 @@ function cron_or_api_build(
         for pr in all_currently_open_pull_requests
             try
                 my_retry() do
-                    cron_or_api_build(
+                    return cron_or_api_build(
                         registry_config,
                         merge_config,
                         api,
@@ -281,7 +280,10 @@ function cron_or_api_build(
     pr_number = number(pr)
     @info("Now examining pull request $(pr_number)")
     pr_author = author_login(pr)
-    if pr_author ∉ vcat(registry_config.authorized_authors, registry_config.authorized_authors_special_jll_exceptions)
+    if pr_author ∉ vcat(
+        registry_config.authorized_authors,
+        registry_config.authorized_authors_special_jll_exceptions,
+    )
         @info(
             string(
                 "Pull request: $(pr_number). ",
@@ -311,7 +313,9 @@ function cron_or_api_build(
     # (as opposed to some other kind of PR).
     # This way we can update the labels now, regardless of the current status
     # of the other steps (e.g. automerge passing, waiting period, etc).
-    blocked = pr_has_blocking_comments(api, registry_repo, pr; auth=auth) && !has_label(pr.labels, OVERRIDE_BLOCKS_LABEL)
+    blocked =
+        pr_has_blocking_comments(api, registry_repo, pr; auth=auth) &&
+        !has_label(pr.labels, OVERRIDE_BLOCKS_LABEL)
 
     # Set GitHub status check for blocked-by-comment state
     # This sets the `automerge/comment` commit status which is distinct from the
@@ -319,20 +323,24 @@ function cron_or_api_build(
     # communicate with the `merge_prs` cron job (this code!).
     status_params = comment_block_status_params(blocked)
     if !registry_config.read_only
-        my_retry(() -> GitHub.create_status(
-            api,
-            registry_repo,
-            pr.head.sha;
-            auth=auth,
-            params=Dict(pairs(status_params)...)
-        ))
+        my_retry(
+            () -> GitHub.create_status(
+                api,
+                registry_repo,
+                pr.head.sha;
+                auth=auth,
+                params=Dict(pairs(status_params)...),
+            ),
+        )
     end
 
     if blocked
         if !registry_config.read_only && !has_label(pr.labels, BLOCKED_LABEL)
             # add `BLOCKED_LABEL` to communicate to users that the PR is blocked
             # from automerging, unless the label is already there.
-            GitHub.add_labels(api, registry_repo.full_name, pr_number, [BLOCKED_LABEL]; auth=auth)
+            GitHub.add_labels(
+                api, registry_repo.full_name, pr_number, [BLOCKED_LABEL]; auth=auth
+            )
         end
         @info(
             string(
@@ -451,7 +459,9 @@ function cron_or_api_build(
             if registry_config.read_only
                 @info "`read_only` mode on; skipping merge"
             else
-                my_retry(() -> merge!(api, registry_repo, pr, passed_pr_head_sha; auth=auth))
+                my_retry(
+                    () -> merge!(api, registry_repo, pr, passed_pr_head_sha; auth=auth)
+                )
             end
         else
             @info(
@@ -485,7 +495,9 @@ function cron_or_api_build(
             if registry_config.read_only
                 @info "`read_only` mode on; skipping merge"
             else
-                my_retry(() -> merge!(api, registry_repo, pr, passed_pr_head_sha; auth=auth))
+                my_retry(
+                    () -> merge!(api, registry_repo, pr, passed_pr_head_sha; auth=auth)
+                )
             end
         else
             @info(

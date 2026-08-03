@@ -12,16 +12,26 @@ end
 struct MovedFunctionalityException <: Exception
     msg::String
 end
-Base.showerror(io::IO, e::MovedFunctionalityException) = print(io, "MovedFunctionalityException: ", e.msg)
+function Base.showerror(io::IO, e::MovedFunctionalityException)
+    return print(io, "MovedFunctionalityException: ", e.msg)
+end
 
 const AutoMerge = MovedFunctionality("AutoMerge")
 const TagBot = MovedFunctionality("TagBot")
 function throw_error(a::MovedFunctionality)
     name = getfield(a, :name)
     if name == "AutoMerge"
-        throw(MovedFunctionalityException("RegistryCI.AutoMerge has been moved to its own package, AutoMerge.jl. See the migration guide at https://juliaregistries.github.io/RegistryCI.jl/dev/migration-v1/ for details on migrating to AutoMerge v1."))
+        throw(
+            MovedFunctionalityException(
+                "RegistryCI.AutoMerge has been moved to its own package, AutoMerge.jl. See the migration guide at https://juliaregistries.github.io/RegistryCI.jl/dev/migration-v1/ for details on migrating to AutoMerge v1.",
+            ),
+        )
     elseif name == "TagBot"
-        throw(MovedFunctionalityException("RegistryCI.TagBot has been moved to a new package, AutoMerge.jl. The API of AutoMerge.TagBot v1.0 matches that of RegistryCI.TagBot v10.10.4."))
+        throw(
+            MovedFunctionalityException(
+                "RegistryCI.TagBot has been moved to a new package, AutoMerge.jl. The API of AutoMerge.TagBot v1.0 matches that of RegistryCI.TagBot v10.10.4.",
+            ),
+        )
     else
         error("Invalid value for name: $name")
     end

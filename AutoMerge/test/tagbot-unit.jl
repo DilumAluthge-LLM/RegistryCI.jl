@@ -55,7 +55,9 @@ end
     unrelated_yml = (; typ="file", path=".github/workflows/CI.yml")
     mock(
         GH.directory => Mock(([tagbot_yml, unrelated_yml], Dict())),
-        GH.file => Mock((; content=base64encode("uses: SciML/.github/.github/workflows/tagbot.yml@v1"))),
+        GH.file => Mock((;
+            content=base64encode("uses: SciML/.github/.github/workflows/tagbot.yml@v1")
+        )),
     ) do directory, file
         path, contents = TB.tagbot_file("SciML/CurveFit.jl")
         @test path == ".github/workflows/TagBot.yml"

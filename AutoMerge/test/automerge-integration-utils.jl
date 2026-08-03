@@ -8,7 +8,6 @@ using AutoMerge
 using Test
 using TimeZones
 
-
 const timestamp_regex = r"integration\/(\d\d\d\d-\d\d-\d\d-\d\d-\d\d-\d\d-\d\d\d)\/"
 
 function wait_pr_compute_mergeability(
@@ -241,7 +240,7 @@ function generate_branch(
         catch
         end
         cd(original_working_directory)
-        rm(git_repo_dir; force=true, recursive=true)
+        return rm(git_repo_dir; force=true, recursive=true)
     end
     return b
 end

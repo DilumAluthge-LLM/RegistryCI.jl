@@ -31,7 +31,7 @@ function setup_global_depot()::String
         ),
     )
     TEMP_DEPOT_FOR_TESTING = tmp_depot
-    tmp_depot
+    return tmp_depot
 end
 
 # Helper function to create a mock GitHub.PullRequest with only essential fields
@@ -50,21 +50,21 @@ run(`git clone https://github.com/MikeInnes/Requires.jl.git $(REQUIRES_CLONE)`)
 # for testing diffs and comments
 function get_requires_version_data()
     master_registry = joinpath(TEMPLATE_DIR, "master_2")
-        feature_registry = joinpath(TEMPLATE_DIR, "feature_2")
-        pkg_clone_dir = REQUIRES_CLONE
-        # Create mock PR with a real commit SHA from Requires.jl
-        mock_pr = create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e") # This should match the tree hash
+    feature_registry = joinpath(TEMPLATE_DIR, "feature_2")
+    pkg_clone_dir = REQUIRES_CLONE
+    # Create mock PR with a real commit SHA from Requires.jl
+    mock_pr = create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e") # This should match the tree hash
 
-        data = (;
-            registration_type=AutoMerge.NewVersion(),
-            pkg="Requires",
-            version=v"2.0.0",
-            registry_master=master_registry,
-            registry_head=feature_registry,
-            pkg_clone_dir=pkg_clone_dir,
-            pr=mock_pr
-        )
-        return data
+    data = (;
+        registration_type=AutoMerge.NewVersion(),
+        pkg="Requires",
+        version=v"2.0.0",
+        registry_master=master_registry,
+        registry_head=feature_registry,
+        pkg_clone_dir=pkg_clone_dir,
+        pr=mock_pr,
+    )
+    return data
 end
 
 # helper for testing `AutoMerge.meets_version_has_osi_license`
@@ -88,29 +88,65 @@ strip_equal(x, y) = strip(x) == strip(y)
 function comment_reference_test()
     data = get_requires_version_data()
     for pass in (true, false),
-        (type_name,type) in (("new_version", AutoMerge.NewVersion()), ("new_package", AutoMerge.NewPackage())),
+        (type_name, type) in
+        (("new_version", AutoMerge.NewVersion()), ("new_package", AutoMerge.NewPackage())),
         suggest_onepointzero in (true, false),
         # some code depends on above or below v"1"
         version in (v"0.1", v"1")
+
         if pass
             for is_jll in (true, false)
-                name = string("comment", "_pass_", pass, "_type_", type_name,
-                "_suggest_onepointzero_", suggest_onepointzero,
-                "_version_", version, "_is_jll_", is_jll)
-                text = AutoMerge.comment_text_pass(type, suggest_onepointzero, version, is_jll; new_package_waiting_minutes=convert(Minute, Day(3)), data)
+                name = string(
+                    "comment",
+                    "_pass_",
+                    pass,
+                    "_type_",
+                    type_name,
+                    "_suggest_onepointzero_",
+                    suggest_onepointzero,
+                    "_version_",
+                    version,
+                    "_is_jll_",
+                    is_jll,
+                )
+                text = AutoMerge.comment_text_pass(
+                    type,
+                    suggest_onepointzero,
+                    version,
+                    is_jll;
+                    new_package_waiting_minutes=convert(Minute, Day(3)),
+                    data,
+                )
                 @test_reference "reference_comments/$name.md" text by=strip_equal
             end
         else
             for point_to_slack in (true, false)
-                name = string("comment", "_pass_", pass, "_type_", type_name,
-                "_suggest_onepointzero_", suggest_onepointzero,
-                "_version_", version, "_point_to_slack_", point_to_slack)
+                name = string(
+                    "comment",
+                    "_pass_",
+                    pass,
+                    "_type_",
+                    type_name,
+                    "_suggest_onepointzero_",
+                    suggest_onepointzero,
+                    "_version_",
+                    version,
+                    "_point_to_slack_",
+                    point_to_slack,
+                )
                 reasons = [
-                            AutoMerge.compat_violation_message(["julia"]),
-                            AutoMerge.breaking_explanation_message(true),
-                            AutoMerge.breaking_explanation_message(false),
-                            "Example guideline failed. Please fix it."]
-                fail_text = AutoMerge.comment_text_fail(type, reasons, suggest_onepointzero, version; point_to_slack=point_to_slack)
+                    AutoMerge.compat_violation_message(["julia"]),
+                    AutoMerge.breaking_explanation_message(true),
+                    AutoMerge.breaking_explanation_message(false),
+                    "Example guideline failed. Please fix it.",
+                ]
+                fail_text = AutoMerge.comment_text_fail(
+                    type,
+                    reasons,
+                    suggest_onepointzero,
+                    version;
+                    point_to_slack=point_to_slack,
+                )
 
                 @test_reference "reference_comments/$name.md" fail_text by=strip_equal
 
@@ -131,7 +167,13 @@ end
         include("format-diff-stats.jl")
     end
     @testset "Customized `new_package_waiting_minutes` in AutoMerge comment " begin
-        text = AutoMerge.comment_text_pass(AutoMerge.NewPackage(), false, v"1", false; new_package_waiting_minutes=Minute(45))
+        text = AutoMerge.comment_text_pass(
+            AutoMerge.NewPackage(),
+            false,
+            v"1",
+            false;
+            new_package_waiting_minutes=Minute(45),
+        )
         @test occursin("(45 minutes)", text)
     end
     @testset "`AutoMerge.parse_registry_pkg_info`" begin
@@ -169,8 +211,7 @@ end
             @test result.diff_stats isa String
             @test !isempty(result.diff_stats)
             # diff_url might be nothing if commit SHAs don't match exactly
-            @test result.diff_url isa Union{String, Nothing}
-
+            @test result.diff_url isa Union{String,Nothing}
         end
 
         # Test case 2: NewPackage registration should return nothing
@@ -185,7 +226,7 @@ end
                 registry_master=master_registry,
                 registry_head=feature_registry,
                 pkg_clone_dir=mktempdir(),
-                pr=create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e")
+                pr=create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e"),
             )
 
             result = AutoMerge.get_version_diff_info(data)
@@ -204,7 +245,7 @@ end
                 registry_master=master_registry,
                 registry_head=feature_registry,
                 pkg_clone_dir=mktempdir(),
-                pr=create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e")
+                pr=create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e"),
             )
 
             result = AutoMerge.get_version_diff_info(data)
@@ -220,16 +261,23 @@ end
                 mkpath(joinpath(empty_registry, "R", "Requires"))
 
                 # Copy Registry.toml
-                cp(joinpath(feature_registry, "Registry.toml"), joinpath(empty_registry, "Registry.toml"))
+                cp(
+                    joinpath(feature_registry, "Registry.toml"),
+                    joinpath(empty_registry, "Registry.toml"),
+                )
 
                 # Copy Package.toml
-                cp(joinpath(feature_registry, "R", "Requires", "Package.toml"),
-                joinpath(empty_registry, "R", "Requires", "Package.toml"))
+                cp(
+                    joinpath(feature_registry, "R", "Requires", "Package.toml"),
+                    joinpath(empty_registry, "R", "Requires", "Package.toml"),
+                )
 
                 # Create empty Versions.toml (no previous versions)
                 open(joinpath(empty_registry, "R", "Requires", "Versions.toml"), "w") do io
                     println(io, "[\"1.0.0\"]")
-                    println(io, "git-tree-sha1 = \"999513b7dea8ac17359ed50ae8ea089e4464e35e\"")
+                    println(
+                        io, "git-tree-sha1 = \"999513b7dea8ac17359ed50ae8ea089e4464e35e\""
+                    )
                 end
 
                 data = (
@@ -239,7 +287,7 @@ end
                     registry_master=empty_registry,
                     registry_head=feature_registry,
                     pkg_clone_dir=mktempdir(),
-                    pr=create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e")
+                    pr=create_mock_pr("999513b7dea8ac17359ed50ae8ea089e4464e35e"),
                 )
 
                 result = AutoMerge.get_version_diff_info(data)
@@ -347,14 +395,24 @@ end
     @testset "perform_distance_check" begin
         @test AutoMerge.perform_distance_check(nothing)
         @test AutoMerge.perform_distance_check([GitHub.Label(; name="hi")])
-        @test !AutoMerge.perform_distance_check([GitHub.Label(; name="Override AutoMerge: name similarity is okay")])
-        @test !AutoMerge.perform_distance_check([GitHub.Label(; name="hi"), GitHub.Label(; name="Override AutoMerge: name similarity is okay")])
+        @test !AutoMerge.perform_distance_check([
+            GitHub.Label(; name="Override AutoMerge: name similarity is okay")
+        ])
+        @test !AutoMerge.perform_distance_check([
+            GitHub.Label(; name="hi"),
+            GitHub.Label(; name="Override AutoMerge: name similarity is okay"),
+        ])
     end
     @testset "has_author_approved_label" begin
         @test !AutoMerge.has_package_author_approved_label(nothing)
         @test !AutoMerge.has_package_author_approved_label([GitHub.Label(; name="hi")])
-        @test AutoMerge.has_package_author_approved_label([GitHub.Label(; name="Override AutoMerge: package author approved")])
-        @test AutoMerge.has_package_author_approved_label([GitHub.Label(; name="hi"), GitHub.Label(; name="Override AutoMerge: package author approved")])
+        @test AutoMerge.has_package_author_approved_label([
+            GitHub.Label(; name="Override AutoMerge: package author approved")
+        ])
+        @test AutoMerge.has_package_author_approved_label([
+            GitHub.Label(; name="hi"),
+            GitHub.Label(; name="Override AutoMerge: package author approved"),
+        ])
     end
     @testset "pr_comment_is_blocking" begin
         @test AutoMerge.pr_comment_is_blocking(GitHub.Comment(; body="hi"))
@@ -364,7 +422,9 @@ end
         @test !AutoMerge.pr_comment_is_blocking(GitHub.Comment(; body="[no block]"))
         @test !AutoMerge.pr_comment_is_blocking(GitHub.Comment(; body="[No Block] hi"))
         @test AutoMerge.pr_comment_is_blocking(GitHub.Comment(; body="[no      block]"))
-        @test !AutoMerge.pr_comment_is_blocking(GitHub.Comment(; body="[merge approved] abc"))
+        @test !AutoMerge.pr_comment_is_blocking(
+            GitHub.Comment(; body="[merge approved] abc")
+        )
     end
     @testset "comment_block_status_params" begin
         # Test blocked state returns failure status
@@ -440,11 +500,14 @@ end
         mktempdir() do tmp
             # Valid Project.toml
             proj_path = joinpath(tmp, "Project.toml")
-            write(proj_path, """
-                name = "TestPkg"
-                uuid = "12345678-1234-1234-1234-123456789abc"
-                version = "1.2.3"
-                """)
+            write(
+                proj_path,
+                """
+   name = "TestPkg"
+   uuid = "12345678-1234-1234-1234-123456789abc"
+   version = "1.2.3"
+   """,
+            )
             result, err = AutoMerge.find_and_parse_project_toml(tmp)
             @test result isa AutoMerge.ProjectInfo
             @test result.pkg_name == "TestPkg"
@@ -455,27 +518,36 @@ end
 
             # Valid JuliaProject.toml
             julia_proj_path = joinpath(tmp, "JuliaProject.toml")
-            write(julia_proj_path, """
-                name = "TestPkg2"
-                uuid = "87654321-4321-4321-4321-cba987654321"
-                version = "0.1.0"
-                """)
+            write(
+                julia_proj_path,
+                """
+name = "TestPkg2"
+uuid = "87654321-4321-4321-4321-cba987654321"
+version = "0.1.0"
+""",
+            )
             result, err = AutoMerge.find_and_parse_project_toml(tmp)
             @test result isa AutoMerge.ProjectInfo
             @test result.pkg_name == "TestPkg2"
             rm(julia_proj_path)
 
             # Both files exist
-            write(proj_path, """
-                name = "TestPkg"
-                uuid = "12345678-1234-1234-1234-123456789abc"
-                version = "1.2.3"
-                """)
-            write(julia_proj_path, """
-                name = "TestPkg2"
-                uuid = "87654321-4321-4321-4321-cba987654321"
-                version = "0.1.0"
-                """)
+            write(
+                proj_path,
+                """
+   name = "TestPkg"
+   uuid = "12345678-1234-1234-1234-123456789abc"
+   version = "1.2.3"
+   """,
+            )
+            write(
+                julia_proj_path,
+                """
+name = "TestPkg2"
+uuid = "87654321-4321-4321-4321-cba987654321"
+version = "0.1.0"
+""",
+            )
             result, err = AutoMerge.find_and_parse_project_toml(tmp)
             @test result === false
             @test occursin("Both Project.toml and JuliaProject.toml", err)
@@ -488,32 +560,41 @@ end
             @test occursin("Neither Project.toml nor JuliaProject.toml", err)
 
             # Missing uuid field
-            write(proj_path, """
-                name = "TestPkg"
-                version = "1.2.3"
-                """)
+            write(
+                proj_path,
+                """
+   name = "TestPkg"
+   version = "1.2.3"
+   """,
+            )
             result, err = AutoMerge.find_and_parse_project_toml(tmp)
             @test result === false
             @test occursin("missing required field `uuid`", err)
             rm(proj_path)
 
             # Invalid UUID
-            write(proj_path, """
-                name = "TestPkg"
-                uuid = "not-a-uuid"
-                version = "1.2.3"
-                """)
+            write(
+                proj_path,
+                """
+   name = "TestPkg"
+   uuid = "not-a-uuid"
+   version = "1.2.3"
+   """,
+            )
             result, err = AutoMerge.find_and_parse_project_toml(tmp)
             @test result === false
             @test occursin("could not be parsed as a UUID", err)
             rm(proj_path)
 
             # Invalid version
-            write(proj_path, """
-                name = "TestPkg"
-                uuid = "12345678-1234-1234-1234-123456789abc"
-                version = "not-a-version"
-                """)
+            write(
+                proj_path,
+                """
+   name = "TestPkg"
+   uuid = "12345678-1234-1234-1234-123456789abc"
+   version = "not-a-version"
+   """,
+            )
             result, err = AutoMerge.find_and_parse_project_toml(tmp)
             @test result === false
             @test occursin("could not be parsed as a VersionNumber", err)
@@ -529,8 +610,10 @@ end
     @testset "`meets_uuid_match_check`" begin
         # UUID not in list - should pass
         test_uuid = UUID("00000000-0000-0000-0000-000000000000")
-        name_uuids = [(name="PackageA", uuid=UUID("11111111-1111-1111-1111-111111111111")),
-                      (name="PackageB", uuid=UUID("22222222-2222-2222-2222-222222222222"))]
+        name_uuids = [
+            (name="PackageA", uuid=UUID("11111111-1111-1111-1111-111111111111")),
+            (name="PackageB", uuid=UUID("22222222-2222-2222-2222-222222222222")),
+        ]
         @test AutoMerge.meets_uuid_match_check(test_uuid, name_uuids)[1]
 
         # UUID already exists - should fail
@@ -549,28 +632,42 @@ end
     @testset "`uuid_passes_sanity_check`" begin
         # Test standards-compliant UUIDs (variant = 2, version 1-8)
         # Version 4 UUID (random) with correct variant bits
-        @test AutoMerge.uuid_passes_sanity_check(UUID("550e8400-e29b-41d4-a716-446655440000"))
+        @test AutoMerge.uuid_passes_sanity_check(
+            UUID("550e8400-e29b-41d4-a716-446655440000")
+        )
 
         # Version 1 UUID (time-based) with correct variant bits
-        @test AutoMerge.uuid_passes_sanity_check(UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6"))
+        @test AutoMerge.uuid_passes_sanity_check(
+            UUID("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")
+        )
 
         # Test Julia's buggy version 1 UUIDs (variant = 0, version = 1)
         # This is what Julia's uuid1() has historically generated
-        @test AutoMerge.uuid_passes_sanity_check(UUID("00000000-0000-1000-0000-000000000000"))
+        @test AutoMerge.uuid_passes_sanity_check(
+            UUID("00000000-0000-1000-0000-000000000000")
+        )
 
         # Test invalid UUIDs - wrong variant for non-v1
         # Version 4 but variant = 0 (should fail)
-        @test !AutoMerge.uuid_passes_sanity_check(UUID("550e8400-e29b-41d4-0716-446655440000"))
+        @test !AutoMerge.uuid_passes_sanity_check(
+            UUID("550e8400-e29b-41d4-0716-446655440000")
+        )
 
         # Test invalid UUIDs - wrong version
         # Version 0 with variant 2 (should fail - version must be 1-8)
-        @test !AutoMerge.uuid_passes_sanity_check(UUID("550e8400-e29b-0000-a716-446655440000"))
+        @test !AutoMerge.uuid_passes_sanity_check(
+            UUID("550e8400-e29b-0000-a716-446655440000")
+        )
 
         # Version 9 with variant 2 (should fail - version must be 1-8)
-        @test !AutoMerge.uuid_passes_sanity_check(UUID("550e8400-e29b-91d4-a716-446655440000"))
+        @test !AutoMerge.uuid_passes_sanity_check(
+            UUID("550e8400-e29b-91d4-a716-446655440000")
+        )
 
         # Test variant = 0 with version != 1 (should fail)
-        @test !AutoMerge.uuid_passes_sanity_check(UUID("550e8400-e29b-41d4-0716-446655440000"))
+        @test !AutoMerge.uuid_passes_sanity_check(
+            UUID("550e8400-e29b-41d4-0716-446655440000")
+        )
     end
     @testset "`meets_uuid_sanity_check`" begin
         # Test with compliant UUID - should pass
@@ -579,7 +676,7 @@ end
             project_file="/tmp/Project.toml",
             pkg_name="TestPkg",
             uuid=compliant_uuid,
-            version=v"1.0.0"
+            version=v"1.0.0",
         )
         @test AutoMerge.meets_uuid_sanity_check(project_info)[1]
 
@@ -589,7 +686,7 @@ end
             project_file="/tmp/Project.toml",
             pkg_name="TestPkg",
             uuid=buggy_v1_uuid,
-            version=v"1.0.0"
+            version=v"1.0.0",
         )
         @test AutoMerge.meets_uuid_sanity_check(project_info_buggy)[1]
 
@@ -599,7 +696,7 @@ end
             project_file="/tmp/Project.toml",
             pkg_name="TestPkg",
             uuid=bad_uuid,
-            version=v"1.0.0"
+            version=v"1.0.0",
         )
         result, msg = AutoMerge.meets_uuid_sanity_check(project_info_bad)
         @test !result
@@ -725,9 +822,13 @@ end
         body_bad_no_notes = ""
         breaking_label = GitHub.Label(; name="BREAKING")
         @test AutoMerge.meets_breaking_explanation_check([breaking_label], body_good)[1]
-        @test AutoMerge.meets_breaking_explanation_check([breaking_label], body_good_changelog)[1]
+        @test AutoMerge.meets_breaking_explanation_check(
+            [breaking_label], body_good_changelog
+        )[1]
         @test !AutoMerge.meets_breaking_explanation_check([breaking_label], body_bad)[1]
-        @test !AutoMerge.meets_breaking_explanation_check([breaking_label], body_bad_no_notes)[1]
+        @test !AutoMerge.meets_breaking_explanation_check(
+            [breaking_label], body_bad_no_notes
+        )[1]
 
         # Maybe this should fail as the label isn't applied by JuliaRegistrator, so the version isn't breaking?
         @test AutoMerge.meets_breaking_explanation_check([], body_good)[1]
@@ -749,12 +850,16 @@ end
     end
     @testset "Version can be added" begin
         registry_path = joinpath(DEPOT_PATH[1], "registries", "General")
-        success, _ = AutoMerge.meets_version_can_be_pkg_added(registry_path, "RegistryCI", v"10.10.4"; environment_variables_to_pass=String[])
+        success, _ = AutoMerge.meets_version_can_be_pkg_added(
+            registry_path, "RegistryCI", v"10.10.4"; environment_variables_to_pass=String[]
+        )
         @test success
     end
     @testset "Version can be imported" begin
         registry_path = joinpath(DEPOT_PATH[1], "registries", "General")
-        success, _ = AutoMerge.meets_version_can_be_imported(registry_path, "RegistryCI", v"10.10.4"; environment_variables_to_pass=String[])
+        success, _ = AutoMerge.meets_version_can_be_imported(
+            registry_path, "RegistryCI", v"10.10.4"; environment_variables_to_pass=String[]
+        )
         @test success
     end
 end
@@ -834,7 +939,8 @@ end
                 # This one is not a valid package name, but nonetheless we want AutoMerge
                 # to run and fail.
                 @test occursin(
-                    AutoMerge.new_package_title_regex, "New package: Mathieu-Functions v1.0.0"
+                    AutoMerge.new_package_title_regex,
+                    "New package: Mathieu-Functions v1.0.0",
                 )
                 @test occursin(
                     AutoMerge.new_package_title_regex, "New package: HelloWorld v1.2.3+0"
@@ -880,12 +986,16 @@ end
             end
             @testset "commit_regex" begin
                 commit_hash = "012345678901234567890123456789abcdef0000"
-                @test occursin(AutoMerge.commit_regex, "- Foo\n- Commit: $(commit_hash)\n- Bar")
+                @test occursin(
+                    AutoMerge.commit_regex, "- Foo\n- Commit: $(commit_hash)\n- Bar"
+                )
                 @test occursin(AutoMerge.commit_regex, "- Commit: $(commit_hash)\n- Bar")
                 @test occursin(AutoMerge.commit_regex, "- Foo\n- Commit: $(commit_hash)")
                 @test occursin(AutoMerge.commit_regex, "- Commit: $(commit_hash)")
                 @test occursin(AutoMerge.commit_regex, "Commit: $(commit_hash)")
-                @test occursin(AutoMerge.commit_regex, "* Foo\n* Commit: $(commit_hash)\n* Bar")
+                @test occursin(
+                    AutoMerge.commit_regex, "* Foo\n* Commit: $(commit_hash)\n* Bar"
+                )
                 @test occursin(AutoMerge.commit_regex, "* Commit: $(commit_hash)\n* Bar")
                 @test occursin(AutoMerge.commit_regex, "* Foo\n* Commit: $(commit_hash)")
                 @test occursin(AutoMerge.commit_regex, "* Commit: $(commit_hash)")
@@ -950,8 +1060,10 @@ end
         @test AutoMerge.nextmajor(v"1.2") == v"2"
         @test AutoMerge.nextmajor(v"1.2.3") == v"2"
         @test AutoMerge.difference(v"1", v"2") == v"1"
-        @test AutoMerge.difference(v"1", v"1") isa AutoMerge.ErrorCannotComputeVersionDifference
-        @test AutoMerge.difference(v"2", v"1") isa AutoMerge.ErrorCannotComputeVersionDifference
+        @test AutoMerge.difference(v"1", v"1") isa
+            AutoMerge.ErrorCannotComputeVersionDifference
+        @test AutoMerge.difference(v"2", v"1") isa
+            AutoMerge.ErrorCannotComputeVersionDifference
         @test !AutoMerge._has_upper_bound(Pkg.Types.VersionRange("0"))
         @test AutoMerge._has_upper_bound(Pkg.Types.VersionRange("1"))
         @test !AutoMerge._has_upper_bound(Pkg.Types.VersionRange("*"))
@@ -966,8 +1078,10 @@ end
         if Base.VERSION >= v"1.4-"
             # We skip this test on Julia 1.3, because it requires `Base.only`.
             @testset "julia_compat" begin
-                registry_path = registry_path = joinpath(DEPOT_PATH[1], "registries", "General")
-                @test AutoMerge.julia_compat("Example", v"0.5.3", registry_path) isa AbstractVector{<:Pkg.Types.VersionRange}
+                registry_path =
+                    registry_path = joinpath(DEPOT_PATH[1], "registries", "General")
+                @test AutoMerge.julia_compat("Example", v"0.5.3", registry_path) isa
+                    AbstractVector{<:Pkg.Types.VersionRange}
             end
         end
     end
@@ -1106,7 +1220,8 @@ end
             "RegistryCI"; pkg_code_path=nothing
         )
         @test !result[1]
-        @test result[2] == "Could not check license because could not access package code. Perhaps the `can_download_code` check failed earlier."
+        @test result[2] ==
+            "Could not check license because could not access package code. Perhaps the `can_download_code` check failed earlier."
 
         withenv("JULIA_PKG_PRECOMPILE_AUTO" => "0") do
             # Let's install a fresh depot in a temporary directory
@@ -1165,37 +1280,37 @@ end
         @testset "write_config and read_config roundtrip" begin
             mktempdir() do tmpdir
                 test_config = AutoMerge.AutoMergeConfiguration(
-                    registry_config = AutoMerge.RegistryConfiguration(
-                        registry = "TestUser/TestRegistry",
-                        authorized_authors = ["testuser", "anotheruser"],
-                        authorized_authors_special_jll_exceptions = ["jllbuild"],
-                        new_package_waiting_minutes = Dates.Minute(60),
-                        new_jll_package_waiting_minutes = Dates.Minute(30),
-                        new_version_waiting_minutes = Dates.Minute(15),
-                        new_jll_version_waiting_minutes = Dates.Minute(5),
-                        master_branch = "main",
-                        error_exit_if_automerge_not_applicable = true,
-                        api_url = "https://api.example.com",
-                        read_only = true
+                    registry_config=AutoMerge.RegistryConfiguration(
+                        registry="TestUser/TestRegistry",
+                        authorized_authors=["testuser", "anotheruser"],
+                        authorized_authors_special_jll_exceptions=["jllbuild"],
+                        new_package_waiting_minutes=Dates.Minute(60),
+                        new_jll_package_waiting_minutes=Dates.Minute(30),
+                        new_version_waiting_minutes=Dates.Minute(15),
+                        new_jll_version_waiting_minutes=Dates.Minute(5),
+                        master_branch="main",
+                        error_exit_if_automerge_not_applicable=true,
+                        api_url="https://api.example.com",
+                        read_only=true,
                     ),
-                    check_pr_config = AutoMerge.CheckPRConfiguration(
-                        master_branch_is_default_branch = false,
-                        public_registries = ["https://github.com/TestOrg/TestRegistry"],
-                        environment_variables_to_pass = ["TEST_VAR"],
-                        commit_status_token_name = "TEST_TOKEN",
-                        check_license = true,
-                        suggest_onepointzero = true,
-                        registry_deps = ["General"],
-                        point_to_slack = false,
-                        check_breaking_explanation = true
+                    check_pr_config=AutoMerge.CheckPRConfiguration(
+                        master_branch_is_default_branch=false,
+                        public_registries=["https://github.com/TestOrg/TestRegistry"],
+                        environment_variables_to_pass=["TEST_VAR"],
+                        commit_status_token_name="TEST_TOKEN",
+                        check_license=true,
+                        suggest_onepointzero=true,
+                        registry_deps=["General"],
+                        point_to_slack=false,
+                        check_breaking_explanation=true,
                     ),
-                    merge_prs_config = AutoMerge.MergePRsConfiguration(
-                        additional_statuses = ["test-status"],
-                        merge_new_packages = false,
-                        additional_check_runs = ["test-check"],
-                        merge_token_name = "MERGE_TOKEN",
-                        merge_new_versions = true
-                    )
+                    merge_prs_config=AutoMerge.MergePRsConfiguration(
+                        additional_statuses=["test-status"],
+                        merge_new_packages=false,
+                        additional_check_runs=["test-check"],
+                        merge_token_name="MERGE_TOKEN",
+                        merge_new_versions=true,
+                    ),
                 )
 
                 config_path = joinpath(tmpdir, "test_config.toml")
@@ -1226,13 +1341,13 @@ end
 
         @testset "serialization/deserialization of Dates.Minute" begin
             test_config = AutoMerge.RegistryConfiguration(
-                registry = "Test/Registry",
-                authorized_authors = ["test"],
-                authorized_authors_special_jll_exceptions = String[],
-                new_package_waiting_minutes = Dates.Minute(120),
-                new_jll_package_waiting_minutes = Dates.Minute(30),
-                new_version_waiting_minutes = Dates.Minute(15),
-                new_jll_version_waiting_minutes = Dates.Minute(5)
+                registry="Test/Registry",
+                authorized_authors=["test"],
+                authorized_authors_special_jll_exceptions=String[],
+                new_package_waiting_minutes=Dates.Minute(120),
+                new_jll_package_waiting_minutes=Dates.Minute(30),
+                new_version_waiting_minutes=Dates.Minute(15),
+                new_jll_version_waiting_minutes=Dates.Minute(5),
             )
 
             # Test serialization and deserialization roundtrip
@@ -1240,7 +1355,9 @@ end
             recreated_config = AutoMerge.from_dict(AutoMerge.RegistryConfiguration, dict)
 
             # Verify minute fields are properly serialized/deserialized
-            minute_fields = filter(f -> endswith(string(f), "_minutes"), propertynames(test_config))
+            minute_fields = filter(
+                f -> endswith(string(f), "_minutes"), propertynames(test_config)
+            )
             for field in minute_fields
                 original_val = getproperty(test_config, field)
                 serialized_val = dict[string(field)]
@@ -1256,7 +1373,9 @@ end
                 invalid_field::Dates.Minute
             end
 
-            @test_throws ErrorException AutoMerge._serialize(:invalid_field, Dates.Minute(10))
+            @test_throws ErrorException AutoMerge._serialize(
+                :invalid_field, Dates.Minute(10)
+            )
         end
 
         @testset "TOML file format validation" begin
@@ -1285,23 +1404,28 @@ end
         @testset "Unknown keys warning" begin
             mktempdir() do tmpdir
                 config_path = joinpath(tmpdir, "unknown_keys.toml")
-                write(config_path, """
-                [registry_config]
-                registry = "Test/Registry"
-                authorized_authors = ["test"]
-                authorized_authors_special_jll_exceptions = []
-                new_package_waiting_minutes = 60
-                new_jll_package_waiting_minutes = 30
-                new_version_waiting_minutes = 15
-                new_jll_version_waiting_minutes = 5
-                unknown_registry_field = "value"
+                write(
+                    config_path,
+                    """
+ [registry_config]
+ registry = "Test/Registry"
+ authorized_authors = ["test"]
+ authorized_authors_special_jll_exceptions = []
+ new_package_waiting_minutes = 60
+ new_jll_package_waiting_minutes = 30
+ new_version_waiting_minutes = 15
+ new_jll_version_waiting_minutes = 5
+ unknown_registry_field = "value"
 
-                [check_pr_config]
+ [check_pr_config]
 
-                [merge_prs_config]
-                """)
+ [merge_prs_config]
+ """,
+                )
                 # Should warn but not error
-                @test_logs (:warn, r"unknown keys") match_mode=:any AutoMerge.read_config(config_path)
+                @test_logs (:warn, r"unknown keys") match_mode=:any AutoMerge.read_config(
+                    config_path
+                )
             end
         end
 
@@ -1309,38 +1433,44 @@ end
             mktempdir() do tmpdir
                 # Negative wait times should error
                 config_path = joinpath(tmpdir, "negative_wait.toml")
-                write(config_path, """
-                [registry_config]
-                registry = "Test/Registry"
-                authorized_authors = ["test"]
-                authorized_authors_special_jll_exceptions = []
-                new_package_waiting_minutes = -10
-                new_jll_package_waiting_minutes = 30
-                new_version_waiting_minutes = 15
-                new_jll_version_waiting_minutes = 5
+                write(
+                    config_path,
+                    """
+ [registry_config]
+ registry = "Test/Registry"
+ authorized_authors = ["test"]
+ authorized_authors_special_jll_exceptions = []
+ new_package_waiting_minutes = -10
+ new_jll_package_waiting_minutes = 30
+ new_version_waiting_minutes = 15
+ new_jll_version_waiting_minutes = 5
 
-                [check_pr_config]
+ [check_pr_config]
 
-                [merge_prs_config]
-                """)
+ [merge_prs_config]
+ """,
+                )
                 @test_throws ErrorException AutoMerge.read_config(config_path)
 
                 # Zero wait times should be allowed (for immediate merging)
                 config_path2 = joinpath(tmpdir, "zero_wait.toml")
-                write(config_path2, """
-                [registry_config]
-                registry = "Test/Registry"
-                authorized_authors = ["test"]
-                authorized_authors_special_jll_exceptions = []
-                new_package_waiting_minutes = 0
-                new_jll_package_waiting_minutes = 0
-                new_version_waiting_minutes = 0
-                new_jll_version_waiting_minutes = 0
+                write(
+                    config_path2,
+                    """
+[registry_config]
+registry = "Test/Registry"
+authorized_authors = ["test"]
+authorized_authors_special_jll_exceptions = []
+new_package_waiting_minutes = 0
+new_jll_package_waiting_minutes = 0
+new_version_waiting_minutes = 0
+new_jll_version_waiting_minutes = 0
 
-                [check_pr_config]
+[check_pr_config]
 
-                [merge_prs_config]
-                """)
+[merge_prs_config]
+""",
+                )
                 config = AutoMerge.read_config(config_path2)
                 @test config.registry_config.new_package_waiting_minutes == Dates.Minute(0)
             end
@@ -1355,51 +1485,61 @@ end
 
             # CheckPRConfiguration override
             cc = AutoMerge.CheckPRConfiguration(config.check_pr_config; check_license=false)
-            @test !cc.check_license && cc.suggest_onepointzero == config.check_pr_config.suggest_onepointzero
+            @test !cc.check_license &&
+                cc.suggest_onepointzero == config.check_pr_config.suggest_onepointzero
 
             # MergePRsConfiguration override
-            mc = AutoMerge.MergePRsConfiguration(config.merge_prs_config; merge_new_packages=false)
+            mc = AutoMerge.MergePRsConfiguration(
+                config.merge_prs_config; merge_new_packages=false
+            )
             @test !mc.merge_new_packages && mc.merge_new_versions
 
             # AutoMergeConfiguration override
             nc = AutoMerge.AutoMergeConfiguration(config; registry_config=rc)
-            @test nc.registry_config.read_only && nc.check_pr_config == config.check_pr_config
+            @test nc.registry_config.read_only &&
+                nc.check_pr_config == config.check_pr_config
         end
 
         @testset "Required fields validation" begin
             mktempdir() do tmpdir
                 # Missing registry field - should error during struct construction
                 config_path = joinpath(tmpdir, "missing_registry.toml")
-                write(config_path, """
-                [registry_config]
-                authorized_authors = ["test"]
-                authorized_authors_special_jll_exceptions = []
-                new_package_waiting_minutes = 60
-                new_jll_package_waiting_minutes = 30
-                new_version_waiting_minutes = 15
-                new_jll_version_waiting_minutes = 5
+                write(
+                    config_path,
+                    """
+ [registry_config]
+ authorized_authors = ["test"]
+ authorized_authors_special_jll_exceptions = []
+ new_package_waiting_minutes = 60
+ new_jll_package_waiting_minutes = 30
+ new_version_waiting_minutes = 15
+ new_jll_version_waiting_minutes = 5
 
-                [check_pr_config]
+ [check_pr_config]
 
-                [merge_prs_config]
-                """)
+ [merge_prs_config]
+ """,
+                )
                 @test_throws Exception AutoMerge.read_config(config_path)
 
                 # Missing authorized_authors - should error during struct construction
                 config_path2 = joinpath(tmpdir, "missing_authors.toml")
-                write(config_path2, """
-                [registry_config]
-                registry = "Test/Registry"
-                authorized_authors_special_jll_exceptions = []
-                new_package_waiting_minutes = 60
-                new_jll_package_waiting_minutes = 30
-                new_version_waiting_minutes = 15
-                new_jll_version_waiting_minutes = 5
+                write(
+                    config_path2,
+                    """
+[registry_config]
+registry = "Test/Registry"
+authorized_authors_special_jll_exceptions = []
+new_package_waiting_minutes = 60
+new_jll_package_waiting_minutes = 30
+new_version_waiting_minutes = 15
+new_jll_version_waiting_minutes = 5
 
-                [check_pr_config]
+[check_pr_config]
 
-                [merge_prs_config]
-                """)
+[merge_prs_config]
+""",
+                )
                 @test_throws Exception AutoMerge.read_config(config_path2)
             end
         end
@@ -1415,38 +1555,54 @@ end
             # Create a mock Versions.toml
             versions_toml = joinpath(pkg_dir, "Versions.toml")
             open(versions_toml, "w") do io
-                write(io, """
-                ["0.1.0"]
-                git-tree-sha1 = "abc123"
+                write(
+                    io,
+                    """
+          ["0.1.0"]
+          git-tree-sha1 = "abc123"
 
-                ["0.2.0"]
-                git-tree-sha1 = "def456"
+          ["0.2.0"]
+          git-tree-sha1 = "def456"
 
-                ["1.0.0"]
-                git-tree-sha1 = "ghi789"
+          ["1.0.0"]
+          git-tree-sha1 = "ghi789"
 
-                ["1.1.0"]
-                git-tree-sha1 = "jkl012"
-                """)
+          ["1.1.0"]
+          git-tree-sha1 = "jkl012"
+          """,
+                )
             end
 
             # Create mock Registry.toml
             registry_toml = joinpath(tmp_registry, "Registry.toml")
             open(registry_toml, "w") do io
-                write(io, """
-                [packages]
-                ABC123 = { name = "TestPkg", path = "A/ABC123" }
-                """)
+                write(
+                    io,
+                    """
+          [packages]
+          ABC123 = { name = "TestPkg", path = "A/ABC123" }
+          """,
+                )
             end
 
             # Test finding previous versions
-            @test AutoMerge.find_previous_semver_version("TestPkg", v"1.1.0", tmp_registry) == v"1.0.0"
-            @test AutoMerge.find_previous_semver_version("TestPkg", v"1.0.0", tmp_registry) == v"0.2.0"
-            @test AutoMerge.find_previous_semver_version("TestPkg", v"0.2.0", tmp_registry) == v"0.1.0"
-            @test AutoMerge.find_previous_semver_version("TestPkg", v"0.1.0", tmp_registry) === nothing
+            @test AutoMerge.find_previous_semver_version(
+                "TestPkg", v"1.1.0", tmp_registry
+            ) == v"1.0.0"
+            @test AutoMerge.find_previous_semver_version(
+                "TestPkg", v"1.0.0", tmp_registry
+            ) == v"0.2.0"
+            @test AutoMerge.find_previous_semver_version(
+                "TestPkg", v"0.2.0", tmp_registry
+            ) == v"0.1.0"
+            @test AutoMerge.find_previous_semver_version(
+                "TestPkg", v"0.1.0", tmp_registry
+            ) === nothing
 
             # Test with version that doesn't exist
-            @test AutoMerge.find_previous_semver_version("TestPkg", v"2.0.0", tmp_registry) == v"1.1.0"
+            @test AutoMerge.find_previous_semver_version(
+                "TestPkg", v"2.0.0", tmp_registry
+            ) == v"1.1.0"
 
             rm(tmp_registry; recursive=true)
         end
@@ -1462,11 +1618,21 @@ end
             end
 
             @testset "extract_github_owner_repo" begin
-                @test AutoMerge.extract_github_owner_repo("https://github.com/owner/repo.git") == ("owner", "repo")
-                @test AutoMerge.extract_github_owner_repo("git@github.com:owner/repo.git") == ("owner", "repo")
-                @test AutoMerge.extract_github_owner_repo("https://github.com/owner/repo") == ("owner", "repo")
-                @test AutoMerge.extract_github_owner_repo("https://github.com/owner/repo/") == ("owner", "repo")
-                @test AutoMerge.extract_github_owner_repo("https://gitlab.com/owner/repo.git") === nothing
+                @test AutoMerge.extract_github_owner_repo(
+                    "https://github.com/owner/repo.git"
+                ) == ("owner", "repo")
+                @test AutoMerge.extract_github_owner_repo(
+                    "git@github.com:owner/repo.git"
+                ) == ("owner", "repo")
+                @test AutoMerge.extract_github_owner_repo(
+                    "https://github.com/owner/repo"
+                ) == ("owner", "repo")
+                @test AutoMerge.extract_github_owner_repo(
+                    "https://github.com/owner/repo/"
+                ) == ("owner", "repo")
+                @test AutoMerge.extract_github_owner_repo(
+                    "https://gitlab.com/owner/repo.git"
+                ) === nothing
                 @test AutoMerge.extract_github_owner_repo("invalid-url") === nothing
             end
 
@@ -1480,21 +1646,28 @@ end
 
                 # Test with SSH URL
                 ssh_url = "git@github.com:owner/repo.git"
-                @test AutoMerge.format_github_diff_url(ssh_url, prev_sha, curr_sha) == expected
+                @test AutoMerge.format_github_diff_url(ssh_url, prev_sha, curr_sha) ==
+                    expected
 
                 # Test with non-GitHub URL
-                @test AutoMerge.format_github_diff_url("https://gitlab.com/owner/repo.git", prev_sha, curr_sha) === nothing
+                @test AutoMerge.format_github_diff_url(
+                    "https://gitlab.com/owner/repo.git", prev_sha, curr_sha
+                ) === nothing
             end
         end
 
         @testset "tree_sha_to_commit_sha" begin
             # Test with non-existent directory
             fake_sha = "0000000000000000000000000000000000000000"
-            @test_throws ErrorException AutoMerge.tree_sha_to_commit_sha(fake_sha, "/invalid/path/DOESNOTEXIST")
+            @test_throws ErrorException AutoMerge.tree_sha_to_commit_sha(
+                fake_sha, "/invalid/path/DOESNOTEXIST"
+            )
 
             # Test with invalid tree SHA in valid repo
             project_root = dirname(pkgdir(AutoMerge))  # Go up from AutoMerge.jl to RegistryCI.jl
-            @test @test_logs (:warn,) AutoMerge.tree_sha_to_commit_sha(fake_sha, project_root) === nothing
+            @test @test_logs (:warn,) AutoMerge.tree_sha_to_commit_sha(
+                fake_sha, project_root
+            ) === nothing
 
             # Create a temporary git repository for comprehensive testing
             mktempdir() do tmpdir
@@ -1532,7 +1705,9 @@ end
                 subdir_tree = readchomp(Cmd(`git rev-parse $subdir_cmd`; dir=repo_dir))
 
                 # Test: finding commit by subdir tree SHA
-                @test AutoMerge.tree_sha_to_commit_sha(subdir_tree, repo_dir; subdir="src") == second_commit
+                @test AutoMerge.tree_sha_to_commit_sha(
+                    subdir_tree, repo_dir; subdir="src"
+                ) == second_commit
 
                 # Create another commit that doesn't modify the subdirectory
                 write(joinpath(repo_dir, "README.md"), "# Test Project")
@@ -1540,12 +1715,16 @@ end
                 run(Cmd(`git commit -m "Add README"`; dir=repo_dir))
 
                 # The subdir tree SHA should still point to the second commit (not the third)
-                @test AutoMerge.tree_sha_to_commit_sha(subdir_tree, repo_dir; subdir="src") == second_commit
+                @test AutoMerge.tree_sha_to_commit_sha(
+                    subdir_tree, repo_dir; subdir="src"
+                ) == second_commit
 
                 # Test with non-existent subdir - should return nothing
                 third_tree_cmd = "HEAD^{tree}"
                 third_tree = readchomp(Cmd(`git rev-parse $third_tree_cmd`; dir=repo_dir))
-                @test AutoMerge.tree_sha_to_commit_sha(third_tree, repo_dir; subdir="nonexistent") === nothing
+                @test AutoMerge.tree_sha_to_commit_sha(
+                    third_tree, repo_dir; subdir="nonexistent"
+                ) === nothing
 
                 # Test with shortened SHA (git should expand it)
                 short_tree = first_tree[1:12]  # Use first 12 characters
@@ -1560,30 +1739,39 @@ end
                 @test result === nothing || result isa AbstractString
 
                 # Test with malformed SHA
-                @test @test_logs (:warn,) AutoMerge.tree_sha_to_commit_sha("not_a_sha", repo_dir) === nothing
-                @test @test_logs (:warn,) AutoMerge.tree_sha_to_commit_sha("", repo_dir) === nothing
+                @test @test_logs (:warn,) AutoMerge.tree_sha_to_commit_sha(
+                    "not_a_sha", repo_dir
+                ) === nothing
+                @test @test_logs (:warn,) AutoMerge.tree_sha_to_commit_sha("", repo_dir) ===
+                    nothing
             end
         end
 
         @testset "Comment generation with diff" begin
             # Test the _version_diff_section function
             diff_info = (
-                diff_stats = "diff stats",
+                diff_stats="diff stats",
                 diff_url="https://github.com/owner/repo/compare/abc123...def456",
                 previous_version=v"1.0.0",
-                current_version=v"1.1.0"
+                current_version=v"1.1.0",
             )
 
             result = AutoMerge._version_diff_section(2, diff_info)
             @test occursin("## 2. Code changes since last version", result)
             @test occursin("Code changes from v1.0.0", result)
-            @test occursin("[View full patch diff on GitHub](https://github.com/owner/repo/compare/abc123...def456)", result)
+            @test occursin(
+                "[View full patch diff on GitHub](https://github.com/owner/repo/compare/abc123...def456)",
+                result,
+            )
         end
 
         @testset "Comment text pass with diff integration" begin
             # Test comment generation with no data (should work as before)
             result_no_data = AutoMerge.comment_text_pass(
-                AutoMerge.NewVersion(), false, v"1.1.0", false;
+                AutoMerge.NewVersion(),
+                false,
+                v"1.1.0",
+                false;
                 new_package_waiting_minutes=Day(3),
             )
             @test occursin("## 1.", result_no_data)  # More flexible test
@@ -1592,8 +1780,12 @@ end
 
             # Test that with data=nothing, we get the same result
             result_with_data = AutoMerge.comment_text_pass(
-                AutoMerge.NewVersion(), false, v"1.1.0", false;
-                new_package_waiting_minutes=Day(3), data=nothing
+                AutoMerge.NewVersion(),
+                false,
+                v"1.1.0",
+                false;
+                new_package_waiting_minutes=Day(3),
+                data=nothing,
             )
             @test result_with_data == result_no_data
         end

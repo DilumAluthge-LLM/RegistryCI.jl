@@ -43,12 +43,12 @@ _repos_are_the_same(::Nothing, ::GitHub.Repo) = false
 _repos_are_the_same(::Nothing, ::Nothing) = false
 function _repos_are_the_same(x::GitHub.Repo, y::GitHub.Repo)
     if x.name == y.name &&
-       x.full_name == y.full_name &&
-       x.owner == y.owner &&
-       x.id == y.id &&
-       x.url == y.url &&
-       x.html_url == y.html_url &&
-       x.fork == y.fork
+        x.full_name == y.full_name &&
+        x.owner == y.owner &&
+        x.id == y.id &&
+        x.url == y.url &&
+        x.html_url == y.html_url &&
+        x.fork == y.fork
         return true
     else
         return false
@@ -105,7 +105,7 @@ end
 function git_commit(message)::Bool
     return try
         git() do git
-            success(`$git commit -m "$(message)"`)
+            return success(`$git commit -m "$(message)"`)
         end
     catch
         false
@@ -127,7 +127,7 @@ end
 function set_git_identity(username, email)
     git() do git
         run(`$git config user.name "$(username)"`)
-        run(`$git config user.email "$(email)"`)
+        return run(`$git config user.email "$(email)"`)
     end
     return nothing
 end
@@ -182,14 +182,14 @@ function main(
     username_mentions_text = generate_username_mentions(cc_usernames)
 
     git() do git
-        run(`$git clone $(registry_url_with_auth) REGISTRY`)
+        return run(`$git clone $(registry_url_with_auth) REGISTRY`)
     end
     cd("REGISTRY")
     git() do git
-        run(`$git checkout $(master_branch)`)
+        return run(`$git checkout $(master_branch)`)
     end
     git() do git
-        run(`$git checkout -B $(pr_branch)`)
+        return run(`$git checkout -B $(pr_branch)`)
     end
     cd(relative_path)
     manifest_filename = joinpath(pwd(), "Manifest.toml")
@@ -200,7 +200,7 @@ function main(
     set_git_identity(my_username, my_email)
     try
         git() do git
-            run(`$git add Manifest.toml`)
+            return run(`$git add Manifest.toml`)
         end
     catch
     end
@@ -208,7 +208,7 @@ function main(
     @info("commit_was_success: $(commit_was_success)")
     if commit_was_success
         git() do git
-            run(`$git push -f origin $(pr_branch)`)
+            return run(`$git push -f origin $(pr_branch)`)
         end
         if pr_title in pr_titles
             @info("An open PR with the title already exists", pr_title)

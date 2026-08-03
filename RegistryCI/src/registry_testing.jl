@@ -94,12 +94,12 @@ function load_package_data(
         # and since the versions are sorted, all versions in between are sorted
         for i in eachindex(vsorted)
             v = vsorted[i]
-            v in vs && (first = i; break)
+            v in vs && (first=i; break)
         end
         last = 0
         for i in reverse(eachindex(vsorted))
             v = vsorted[i]
-            v in vs && (last = i; break)
+            v in vs && (last=i; break)
         end
         for i in first:last
             v = vsorted[i]
@@ -241,7 +241,8 @@ function test(path=pwd(); registry_deps::Vector{<:AbstractString}=String[])
                     # Make sure that each compat spec is a valid registry compat spec.
                     # https://github.com/JuliaRegistries/General/issues/104849
                     for (versionrange, compatinfo) in pairs(compat)
-                        @test Pkg.Types.VersionRange(versionrange) isa Pkg.Types.VersionRange
+                        @test Pkg.Types.VersionRange(versionrange) isa
+                            Pkg.Types.VersionRange
                         for (name, spec_unparsed) in pairs(compatinfo)
                             spec = Pkg.Types.VersionSpec(spec_unparsed)
                             # Make sure that the compat spec is a valid registry compat spec:
@@ -260,7 +261,8 @@ function test(path=pwd(); registry_deps::Vector{<:AbstractString}=String[])
                     mapvalues = (f, dict) -> Dict(k => f(v) for (k, v) in dict)
                     f_inner = v -> Pkg.Types.VersionRange.(v)
                     f_outer = dict -> mapvalues(f_inner, dict)
-                    @test _spacify_hyphens(mapvalues(f_outer, compressed)) == _spacify_hyphens(mapvalues(f_outer, compat))
+                    @test _spacify_hyphens(mapvalues(f_outer, compressed)) ==
+                        _spacify_hyphens(mapvalues(f_outer, compat))
                 else
                     @debug "Compat.toml file does not exist" compatfile
                 end
@@ -274,10 +276,7 @@ function test(path=pwd(); registry_deps::Vector{<:AbstractString}=String[])
                 # would not collide but be placed in the same directory.
                 path_parts = [splitpath(data["path"]) for (_, data) in reg["packages"]]
                 for i in 1:maximum(length, path_parts)
-                    i_parts = Set(
-                        joinpath(x[1:i]...) for
-                        x in path_parts if length(x) >= i
-                    )
+                    i_parts = Set(joinpath(x[1:i]...) for x in path_parts if length(x) >= i)
                     i_parts′ = Set(
                         joinpath(lowercase.(x[1:i])...) for
                         x in path_parts if length(x) >= i
@@ -294,12 +293,12 @@ end
 function _spacify_hyphens(str::AbstractString)
     r = r"(\d)-(\d)"
     s = s"\1 - \2"
-    new_str = replace(str, r => s)
+    return new_str = replace(str, r => s)
 end
 
 # Apply `_spacify_hyphens()` recursively through a dictionary
-function _spacify_hyphens(dict::Dict{K, V}) where {K, V}
-    new_dict = Dict{K, V}()
+function _spacify_hyphens(dict::Dict{K,V}) where {K,V}
+    new_dict = Dict{K,V}()
     # Note: `Base.Dict` iterates key-value pairs, so it's sufficient for us to do
     # `for (k, v) in dict`. However, there are some other dictionary implementations
     # (such as the Dictionaries.jl package) that do not iterate key-value pairs. So,

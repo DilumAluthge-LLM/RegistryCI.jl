@@ -40,7 +40,9 @@ function meets_compat_for_julia(working_directory::AbstractString, pkg, version)
     package_relpath = get_package_relpath_in_registry(;
         package_name=pkg, registry_path=working_directory
     )
-    compat = parse_registry_toml(working_directory, package_relpath, "Compat.toml"; allow_missing = true)
+    compat = parse_registry_toml(
+        working_directory, package_relpath, "Compat.toml"; allow_missing=true
+    )
     # Go through all the compat entries looking for the julia compat
     # of the new version. When found, test
     # 1. that it is a bounded range,
@@ -114,17 +116,20 @@ function compat_violation_message(bad_dependencies)
             Every package listed in `[deps]`, along with `julia` itself, must also be listed under `[compat]` (if you don't have a `[compat]` section, make one!). See the [Pkg docs](https://pkgdocs.julialang.org/v1/compatibility/) for the syntax for compatibility bounds, and [this documentation](https://juliaregistries.github.io/RegistryCI.jl/stable/guidelines/#Upper-bounded-%5Bcompat%5D-entries) for more on the kinds of compat bounds required for AutoMerge.
 
             </details>
-        """
+        """,
     )
-
 end
 
 function meets_compat_for_all_deps(working_directory::AbstractString, pkg, version)
     package_relpath = get_package_relpath_in_registry(;
         package_name=pkg, registry_path=working_directory
     )
-    compat = parse_registry_toml(working_directory, package_relpath, "Compat.toml"; allow_missing = true)
-    deps = parse_registry_toml(working_directory, package_relpath, "Deps.toml"; allow_missing = true)
+    compat = parse_registry_toml(
+        working_directory, package_relpath, "Compat.toml"; allow_missing=true
+    )
+    deps = parse_registry_toml(
+        working_directory, package_relpath, "Deps.toml"; allow_missing=true
+    )
     # First, we construct a Dict in which the keys are the package's
     # dependencies, and the value is always false.
     dep_has_compat_with_upper_bound = Dict{String,Bool}()
@@ -296,35 +301,35 @@ end
 
 # This check cannot be overridden, since it's important for registry integrity
 const guideline_name_match_check = Guideline(;
-    info = "Name does not match the name of any existing package names (up-to-case)",
-    docs = "Packages must not match the name of existing package up-to-case, since on case-insensitive filesystems, this will break the registry.",
-    check=data -> meets_name_match_check(data.pkg, data.registry_master))
+    info="Name does not match the name of any existing package names (up-to-case)",
+    docs="Packages must not match the name of existing package up-to-case, since on case-insensitive filesystems, this will break the registry.",
+    check=data -> meets_name_match_check(data.pkg, data.registry_master),
+)
 
 function meets_name_match_check(pkg_name::AbstractString, registry_master::AbstractString)
     other_packages = get_all_pkg_names(registry_master)
     return meets_name_match_check(pkg_name, other_packages)
 end
 
-function meets_name_match_check(
-    pkg_name::AbstractString,
-    other_packages::Vector;
-)
+function meets_name_match_check(pkg_name::AbstractString, other_packages::Vector;)
     for other_pkg in other_packages
         if pkg_name == other_pkg
             # We short-circuit in this case; more information doesn't help.
             return (false, "Package name already exists in the registry.")
         elseif lowercase(pkg_name) == lowercase(other_pkg)
-            return (false, "Package name matches existing package name $(other_pkg) up-to-case.")
+            return (
+                false, "Package name matches existing package name $(other_pkg) up-to-case."
+            )
         end
     end
     return (true, "")
 end
 
-
 const guideline_project_toml_check = Guideline(;
-    info = "Project.toml (or JuliaProject.toml) either does not exist, cannot be parsed, or is not consistent with registration PR.",
-    docs = "Checks that the package's Project.toml (or JuliaProject.toml) exists, can be parsed, and is consistent with registration PR.",
-    check=data -> meets_project_toml_check(data))
+    info="Project.toml (or JuliaProject.toml) either does not exist, cannot be parsed, or is not consistent with registration PR.",
+    docs="Checks that the package's Project.toml (or JuliaProject.toml) exists, can be parsed, and is consistent with registration PR.",
+    check=data -> meets_project_toml_check(data),
+)
 
 function meets_project_toml_check(data)
     val, err = find_and_parse_project_toml(data.pkg_code_path)
@@ -332,10 +337,12 @@ function meets_project_toml_check(data)
         return val, err
     end
     if data.pkg != val.pkg_name
-        return false, "Package name from parsing the project file ($(val.pkg_name)) does not match package name from registration PR ($(data.pkg))"
+        return false,
+        "Package name from parsing the project file ($(val.pkg_name)) does not match package name from registration PR ($(data.pkg))"
     end
     if data.version != val.version
-        return false, "Package version from parsing the project file ($(val.version)) does not match version from registration PR ($(data.version))"
+        return false,
+        "Package version from parsing the project file ($(val.version)) does not match version from registration PR ($(data.version))"
     end
     # store the parsed ProjectInfo
     data.parsed_project_info = val
@@ -346,10 +353,15 @@ function find_and_parse_project_toml(code_path::AbstractString)
     proj_path = joinpath(code_path, "Project.toml")
     julia_proj_path = joinpath(code_path, "JuliaProject.toml")
     if isfile(proj_path) && isfile(julia_proj_path)
-        return (false, "Both Project.toml and JuliaProject.toml files exist in package directory.")
+        return (
+            false,
+            "Both Project.toml and JuliaProject.toml files exist in package directory.",
+        )
     end
     if !isfile(proj_path) && !isfile(julia_proj_path)
-        return (false, "Neither Project.toml nor JuliaProject.toml found in package directory.")
+        return (
+            false, "Neither Project.toml nor JuliaProject.toml found in package directory."
+        )
     end
     selected_proj_path = isfile(proj_path) ? proj_path : julia_proj_path
     selected_proj_name = basename(selected_proj_path)
@@ -361,34 +373,41 @@ function find_and_parse_project_toml(code_path::AbstractString)
     for field in req_fields
         val = get(toml, field, nothing)
         if val === nothing
-            return (false, "Project file $selected_proj_name missing required field `$field`.")
+            return (
+                false, "Project file $selected_proj_name missing required field `$field`."
+            )
         end
     end
     uuid = tryparse(UUID, toml["uuid"])
     if uuid === nothing
-        return (false, "Project file $selected_proj_name's uuid field `$(toml["uuid"])` could not be parsed as a UUID.")
+        return (
+            false,
+            "Project file $selected_proj_name's uuid field `$(toml["uuid"])` could not be parsed as a UUID.",
+        )
     end
     version = tryparse(VersionNumber, toml["version"])
     if version === nothing
-        return (false, "Project file $selected_proj_name's version field `$(toml["version"])` could not be parsed as a VersionNumber.")
+        return (
+            false,
+            "Project file $selected_proj_name's version field `$(toml["version"])` could not be parsed as a VersionNumber.",
+        )
     end
     info = ProjectInfo(;
-        project_file=selected_proj_path,
-        pkg_name=toml["name"],
-        uuid=uuid,
-        version=version
+        project_file=selected_proj_path, pkg_name=toml["name"], uuid=uuid, version=version
     )
     return (info, "")
 end
 
-
 # This check cannot be overridden, since it's important for registry integrity
 const guideline_uuid_match_check = Guideline(;
-    info = "UUID does not collide with existing package or stdlib UUID",
-    docs = "Packages must not match the UUID of an existing package or stdlib.",
-    check=data -> meets_uuid_match_check(data.parsed_project_info, data.registry_master))
+    info="UUID does not collide with existing package or stdlib UUID",
+    docs="Packages must not match the UUID of an existing package or stdlib.",
+    check=data -> meets_uuid_match_check(data.parsed_project_info, data.registry_master),
+)
 
-function meets_uuid_match_check(maybe_project_info::Union{Nothing,ProjectInfo}, registry_master::AbstractString)
+function meets_uuid_match_check(
+    maybe_project_info::Union{Nothing,ProjectInfo}, registry_master::AbstractString
+)
     if maybe_project_info === nothing
         return false, "Could not check package UUID as Project.toml checks failed"
     end
@@ -397,10 +416,7 @@ function meets_uuid_match_check(maybe_project_info::Union{Nothing,ProjectInfo}, 
     return meets_uuid_match_check(pkg_uuid, name_uuids)
 end
 
-function meets_uuid_match_check(
-    pkg_uuid::UUID,
-    name_uuids::Vector;
-)
+function meets_uuid_match_check(pkg_uuid::UUID, name_uuids::Vector;)
     for (; name, uuid) in name_uuids
         if pkg_uuid == uuid
             return (false, "Registered package (or stdlib) $name already has UUID $uuid.")
@@ -436,16 +452,17 @@ end
 
 # This check is only applied to new packages, not new versions
 const guideline_uuid_sanity_check = Guideline(;
-    info = "UUID passes sanity check (conforms to RFC 4122/RFC 9562 or is a legacy Julia v1 UUID)",
-    docs = string(
+    info="UUID passes sanity check (conforms to RFC 4122/RFC 9562 or is a legacy Julia v1 UUID)",
+    docs=string(
         "The package's UUID must conform to RFC 4122 / RFC 9562 standards. ",
         "This means:\n",
         "- The version field (4 bits at positions 48-51) should be 1-8\n",
         "- The variant field (2 bits at positions 64-65) should be binary `10` (hex character 8, 9, a, or b at position 19)\n\n",
         "Exception: Julia's `uuid1()` function has historically generated UUIDs with incorrect variant bits (binary `00` instead of `10`). ",
-        "These UUIDs are accepted for backward compatibility with existing packages."
+        "These UUIDs are accepted for backward compatibility with existing packages.",
     ),
-    check=data -> meets_uuid_sanity_check(data.parsed_project_info))
+    check=data -> meets_uuid_sanity_check(data.parsed_project_info),
+)
 
 function meets_uuid_sanity_check(maybe_project_info::Union{Nothing,ProjectInfo})
     if maybe_project_info === nothing
@@ -458,21 +475,23 @@ function meets_uuid_sanity_check(maybe_project_info::Union{Nothing,ProjectInfo})
     else
         version = uuid_version(pkg_uuid)
         variant = Int((pkg_uuid.value >> 62) & 0x3)
-        return false, string(
+        return false,
+        string(
             "The package's UUID ($pkg_uuid) does not conform to RFC 4122 / RFC 9562 standards. ",
             "The UUID has version=$version and variant=$variant. ",
             "Valid UUIDs must have version 1-8 with variant=2 (binary 10), ",
             "or be a legacy Julia v1 UUID (version=1 with variant=0). ",
-            "Please generate a new standards-compliant UUID using `UUIDs.uuid4()`."
+            "Please generate a new standards-compliant UUID using `UUIDs.uuid4()`.",
         )
     end
 end
 
 # This check checks for an explanation of why a breaking change is breaking
 const guideline_breaking_explanation = Guideline(;
-    info = "Release notes have not been provided that explain why this is a breaking change.",
-    docs = "If this is a breaking change, release notes must be given that explain why this is a breaking change (i.e. mention \"breaking\" or \"changelog\"). To update the release notes, please see the \"Providing and updating release notes\" subsection under \"Additional information\" below.",
-    check=data -> meets_breaking_explanation_check(data))
+    info="Release notes have not been provided that explain why this is a breaking change.",
+    docs="If this is a breaking change, release notes must be given that explain why this is a breaking change (i.e. mention \"breaking\" or \"changelog\"). To update the release notes, please see the \"Providing and updating release notes\" subsection under \"Additional information\" below.",
+    check=data -> meets_breaking_explanation_check(data),
+)
 
 function meets_breaking_explanation_check(data::GitHubAutoMergeData)
     # Look up PR here in case the labels are slow to be applied by the Registrator bot
@@ -687,7 +706,8 @@ function meets_name_is_identifier(pkg)
     if Base.isidentifier(pkg)
         return true, ""
     else
-        return false, "The package's name ($pkg) is not a valid Julia identifier according to `Base.isidentifier`. Typically this means it contains `-` or other characters that can't be used in defining a variable name or module. The package must be renamed to be registered."
+        return false,
+        "The package's name ($pkg) is not a valid Julia identifier according to `Base.isidentifier`. Typically this means it contains `-` or other characters that can't be used in defining a variable name or module. The package must be renamed to be registered."
     end
 end
 
@@ -742,7 +762,9 @@ function meets_repo_url_requirement(pkg::String; registry_head::String)
 end
 
 function _invalid_sequential_version(reason::AbstractString)
-    return false, "Does not meet sequential version number guideline: $(reason). $PACKAGE_AUTHOR_APPROVAL_INSTRUCTIONS", :invalid
+    return false,
+    "Does not meet sequential version number guideline: $(reason). $PACKAGE_AUTHOR_APPROVAL_INSTRUCTIONS",
+    :invalid
 end
 
 function _valid_change(old_version::VersionNumber, new_version::VersionNumber)
@@ -771,7 +793,8 @@ end
 
 const PACKAGE_AUTHOR_APPROVAL_INSTRUCTIONS = string(
     "**If this was not a mistake and you wish to merge this PR anyway, ",
-    "write a comment that says `[merge approved]`.**")
+    "write a comment that says `[merge approved]`.**",
+)
 
 const guideline_sequential_version_number = Guideline(;
     info="Sequential version number",
@@ -849,17 +872,13 @@ end
 
 const guideline_version_number_no_prerelease = Guideline(;
     info="No prerelease data in the version number",
-    docs = "Version number is not allowed to contain prerelease data",
-    check = data -> meets_version_number_no_prerelease(
-        data.version,
-    ),
+    docs="Version number is not allowed to contain prerelease data",
+    check=data -> meets_version_number_no_prerelease(data.version),
 )
 const guideline_version_number_no_build = Guideline(;
     info="No build data in the version number",
-    docs = "Version number is not allowed to contain build data",
-    check = data -> meets_version_number_no_build(
-        data.version,
-    ),
+    docs="Version number is not allowed to contain build data",
+    check=data -> meets_version_number_no_build(data.version),
 )
 function meets_version_number_no_prerelease(version::VersionNumber)
     if isempty(version.prerelease)
@@ -889,7 +908,7 @@ const guideline_code_can_be_downloaded = Guideline(;
 )
 
 function _find_lowercase_duplicates(v)
-    elts = Dict{String, String}()
+    elts = Dict{String,String}()
     for x in v
         lower_x = lowercase(x)
         if haskey(elts, lower_x)
@@ -903,15 +922,16 @@ end
 
 const DISALLOWED_CHARS = ['/', '<', '>', ':', '"', '/', '\\', '|', '?', '*', Char.(0:31)...]
 
-const DISALLOWED_NAMES = ["CON", "PRN", "AUX", "NUL",
-                          ("COM$i" for i in 1:9)...,
-                          ("LPT$i" for i in 1:9)...]
+const DISALLOWED_NAMES = [
+    "CON", "PRN", "AUX", "NUL", ("COM$i" for i in 1:9)..., ("LPT$i" for i in 1:9)...
+]
 
 function meets_file_dir_name_check(name)
     # https://stackoverflow.com/a/31976060
     idx = findfirst(n -> occursin(n, name), DISALLOWED_CHARS)
     if idx !== nothing
-        return false, "contains character $(DISALLOWED_CHARS[idx]) which may not be valid as a file or directory name on some platforms"
+        return false,
+        "contains character $(DISALLOWED_CHARS[idx]) which may not be valid as a file or directory name on some platforms"
     end
 
     base, ext = splitext(name)
@@ -933,13 +953,15 @@ function meets_src_names_ok(pkg_code_path)
         if result !== nothing
             x = joinpath(root, result[1])
             y = joinpath(root, result[2])
-            return false, "Found files or directories in `src` which will cause problems on case insensitive filesystems: `$x` and `$y`"
+            return false,
+            "Found files or directories in `src` which will cause problems on case insensitive filesystems: `$x` and `$y`"
         end
 
         for f in files_dirs
             ok, msg = meets_file_dir_name_check(f)
             if !ok
-                return false, "the name of file or directory $(joinpath(root, f)) $(msg). This can cause problems on some operating systems or file systems."
+                return false,
+                "the name of file or directory $(joinpath(root, f)) $(msg). This can cause problems on some operating systems or file systems."
             end
         end
     end
@@ -951,7 +973,9 @@ const guideline_src_names_OK = Guideline(;
     check=data -> meets_src_names_ok(data.pkg_code_path),
 )
 
-function meets_code_can_be_downloaded(registry_head, pkg, version, pr; pkg_code_path, pkg_clone_dir)
+function meets_code_can_be_downloaded(
+    registry_head, pkg, version, pr; pkg_code_path, pkg_clone_dir
+)
     uuid, package_repo, subdir, tree_hash_from_toml = parse_registry_pkg_info(
         registry_head, pkg, version
     )
@@ -966,7 +990,7 @@ function meets_code_can_be_downloaded(registry_head, pkg, version, pr; pkg_code_
     clone_success = load_files_from_url_and_tree_hash(
         pkg_code_path, package_repo, tree_hash_from_toml, pkg_clone_dir
     ) do dir
-        tree_hash_from_commit, tree_hash_from_commit_success = try
+        return tree_hash_from_commit, tree_hash_from_commit_success = try
             readchomp(Cmd(`git rev-parse $(commit_hash):$(subdir)`; dir=dir)), true
         catch e
             @error e
@@ -1099,7 +1123,7 @@ function meets_version_can_be_pkg_added(
         registry_deps,
         environment_variables_to_pass,
         failure_string,
-        action = "Pkg.add",
+        action="Pkg.add",
     )
 end
 
@@ -1135,7 +1159,7 @@ function meets_version_can_be_imported(
         registry_deps,
         environment_variables_to_pass,
         failure_string,
-        action = "import",
+        action="import",
     )
 end
 
@@ -1185,7 +1209,8 @@ function meets_version_can_be_added_or_imported(
     julia_binaries = get_compatible_julia_binaries(jl_compat, v"1.1.0")
     if isempty(julia_binaries)
         @error "Was not able to find a compatible Julia version. julia_compat: $(jl_compat)"
-        return false, "I was not able to find a compatible Julia version. See the AutoMerge logs for details."
+        return false,
+        "I was not able to find a compatible Julia version. See the AutoMerge logs for details."
     end
     for (binary, version_text) in julia_binaries
         cmd_ran_successfully = _run_pkg_commands(
@@ -1255,15 +1280,10 @@ function _run_pkg_commands(
         "R_HOME" => "*",
     )
     default_environment_variables_to_pass = [
-        "HOME",
-        "JULIA_PKG_SERVER",
-        "PATH",
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
+        "HOME", "JULIA_PKG_SERVER", "PATH", "HTTP_PROXY", "HTTPS_PROXY"
     ]
     all_environment_variables_to_pass = vcat(
-        default_environment_variables_to_pass,
-        environment_variables_to_pass,
+        default_environment_variables_to_pass, environment_variables_to_pass
     )
     for k in all_environment_variables_to_pass
         if haskey(ENV, k)
@@ -1284,11 +1304,13 @@ function _run_pkg_commands(
         pushfirst!(cmd.exec, xvfb)
     end
     @info(before_message)
-    @info("""
-        IMPORTANT: If you see any messages of the form "Error: Some registries failed to update"
-        or "registry dirty"
-        please disregard those messages. Those messages are normal and do not indicate an error.
-    """)
+    @info(
+        """
+      IMPORTANT: If you see any messages of the form "Error: Some registries failed to update"
+      or "registry dirty"
+      please disregard those messages. Those messages are normal and do not indicate an error.
+  """
+    )
     cmd_ran_successfully = success(pipeline(cmd; stdout=stdout, stderr=stderr))
     cd(original_directory)
 
@@ -1314,7 +1336,7 @@ function get_automerge_guidelines(
     this_pr_can_use_special_jll_exceptions::Bool,
     use_distance_check::Bool,
     package_author_approved::Bool, # currently unused for new packages
-    check_breaking_explanation::Bool # not valid for new packages
+    check_breaking_explanation::Bool, # not valid for new packages
 )
     guidelines = [
         # We first verify the name is a valid Julia identifier.
@@ -1374,7 +1396,10 @@ function get_automerge_guidelines(
     guidelines = [
         (guideline_registry_consistency_tests_pass, true),
         (guideline_pr_only_changes_allowed_files, true),
-        (guideline_sequential_version_number, !this_pr_can_use_special_jll_exceptions && !package_author_approved),
+        (
+            guideline_sequential_version_number,
+            !this_pr_can_use_special_jll_exceptions && !package_author_approved,
+        ),
         (guideline_version_number_no_prerelease, true),
         (guideline_version_number_no_build, !this_pr_can_use_special_jll_exceptions),
         (guideline_compat_for_julia, true),
@@ -1395,7 +1420,10 @@ function get_automerge_guidelines(
         (guideline_project_toml_check, true),
         (guideline_src_names_OK, true),
         (guideline_version_can_be_imported, true),
-        (guideline_breaking_explanation, check_breaking_explanation && !this_is_jll_package),
+        (
+            guideline_breaking_explanation,
+            check_breaking_explanation && !this_is_jll_package,
+        ),
     ]
     return guidelines
 end

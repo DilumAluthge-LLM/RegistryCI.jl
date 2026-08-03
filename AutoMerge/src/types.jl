@@ -53,8 +53,11 @@ Base.@kwdef struct RegistryConfiguration <: AbstractConfiguration
 end
 
 # Constructor for easy field overrides
-RegistryConfiguration(c::RegistryConfiguration; kw...) =
-    RegistryConfiguration(; (k => getproperty(c, k) for k in propertynames(c))..., kw...)
+function RegistryConfiguration(c::RegistryConfiguration; kw...)
+    return RegistryConfiguration(;
+        (k => getproperty(c, k) for k in propertynames(c))..., kw...
+    )
+end
 
 """
     CheckPRConfiguration
@@ -100,8 +103,11 @@ Base.@kwdef struct CheckPRConfiguration <: AbstractConfiguration
 end
 
 # Constructor for easy field overrides
-CheckPRConfiguration(c::CheckPRConfiguration; kw...) =
-    CheckPRConfiguration(; (k => getproperty(c, k) for k in propertynames(c))..., kw...)
+function CheckPRConfiguration(c::CheckPRConfiguration; kw...)
+    return CheckPRConfiguration(;
+        (k => getproperty(c, k) for k in propertynames(c))..., kw...
+    )
+end
 
 """
     MergePRsConfiguration
@@ -135,9 +141,11 @@ Base.@kwdef struct MergePRsConfiguration <: AbstractConfiguration
 end
 
 # Constructor for easy field overrides
-MergePRsConfiguration(c::MergePRsConfiguration; kw...) =
-    MergePRsConfiguration(; (k => getproperty(c, k) for k in propertynames(c))..., kw...)
-
+function MergePRsConfiguration(c::MergePRsConfiguration; kw...)
+    return MergePRsConfiguration(;
+        (k => getproperty(c, k) for k in propertynames(c))..., kw...
+    )
+end
 
 """
     AutoMergeConfiguration
@@ -167,27 +175,36 @@ Base.@kwdef struct AutoMergeConfiguration <: AbstractConfiguration
 end
 
 # Constructor for easy field overrides
-AutoMergeConfiguration(c::AutoMergeConfiguration; kw...) =
-    AutoMergeConfiguration(; (k => getproperty(c, k) for k in propertynames(c))..., kw...)
+function AutoMergeConfiguration(c::AutoMergeConfiguration; kw...)
+    return AutoMergeConfiguration(;
+        (k => getproperty(c, k) for k in propertynames(c))..., kw...
+    )
+end
 
 _serialize(k, x::Any) = x
 function _serialize(k, x::Dates.Minute)
     if !endswith(string(k), "_minutes")
-        error("field $k does not end with `_minutes` but value $x has type `Dates.Minute`, so cannot be serialized unambiguously.")
+        error(
+            "field $k does not end with `_minutes` but value $x has type `Dates.Minute`, so cannot be serialized unambiguously.",
+        )
     end
     return Dates.value(x)
 end
 _serialize(k, x::AbstractConfiguration) = to_dict(x)
 
 function to_dict(config::AbstractConfiguration)
-    Dict{String,Any}(string(k) => _serialize(k, getproperty(config, k)) for k in propertynames(config))
+    return Dict{String,Any}(
+        string(k) => _serialize(k, getproperty(config, k)) for k in propertynames(config)
+    )
 end
 
 function _deserialize(k::AbstractString, x::Any)
     if endswith(k, "_minutes")
         val = Dates.Minute(x)
         if val < Dates.Minute(0)
-            error("Configuration field '$k' must be non-negative, got $(Dates.value(val)) minutes. Please check your configuration file.")
+            error(
+                "Configuration field '$k' must be non-negative, got $(Dates.value(val)) minutes. Please check your configuration file.",
+            )
         end
         return val
     elseif k == "registry_config"
@@ -200,14 +217,18 @@ function _deserialize(k::AbstractString, x::Any)
         # Validate Vector{String} arrays
         if x isa Vector
             if !all(elt -> elt isa String, x)
-                error("Configuration field '$k' must be a Vector{String}, but contains non-string elements. Please check your configuration file.")
+                error(
+                    "Configuration field '$k' must be a Vector{String}, but contains non-string elements. Please check your configuration file.",
+                )
             end
             return Vector{String}(x)
         end
         return x
     end
 end
-function from_dict(::Type{Config}, dict::AbstractDict{String}) where {Config <: AbstractConfiguration}
+function from_dict(
+    ::Type{Config}, dict::AbstractDict{String}
+) where {Config<:AbstractConfiguration}
     # Check for unknown keys and warn (forward compatibility)
     expected_keys = Set(String(k) for k in fieldnames(Config))
     dict_keys = Set(keys(dict))
@@ -216,7 +237,9 @@ function from_dict(::Type{Config}, dict::AbstractDict{String}) where {Config <: 
         @warn "Configuration contains unknown keys: $(join(unknown_keys, ", ")). This may indicate the configuration was created with a newer version of AutoMerge. These keys will be ignored."
     end
 
-    Config(; (Symbol(k) => _deserialize(k, dict[k]) for k in keys(dict) if k in expected_keys)...)
+    return Config(;
+        (Symbol(k) => _deserialize(k, dict[k]) for k in keys(dict) if k in expected_keys)...
+    )
 end
 
 """
@@ -235,7 +258,7 @@ Write an AutoMerge configuration to a TOML file. Automatically handles serializa
 """
 function write_config(path, config::AbstractConfiguration)
     open(path; write=true) do io
-       TOML.print(io, AutoMerge.to_dict(config))
+        return TOML.print(io, AutoMerge.to_dict(config))
     end
 end
 
@@ -243,14 +266,14 @@ function _full_show(io::IO, obj::Any; indent=0)
     # one-liner, so don't need indent
     print(io, " `")
     show(io, obj)
-    print(io, "`")
+    return print(io, "`")
 end
 
 function _full_show(io::IO, obj::AbstractConfiguration; indent=0)
     indent == 0 && print(io, " "^indent, typeof(obj), " with:")
     for k in propertynames(obj)
         print(io, "\n  ", " "^indent, k, ":")
-        _full_show(io, getproperty(obj, k); indent = indent+2)
+        _full_show(io, getproperty(obj, k); indent=indent+2)
     end
 end
 Base.show(io::IO, ::MIME"text/plain", obj::AbstractConfiguration) = _full_show(io, obj)
